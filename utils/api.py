@@ -3,6 +3,11 @@ import urllib.parse
 import urllib.error
 import json
 
+API_URL = (
+    "https://apis.data.go.kr/"
+    "B552584/ArpltnInforInqireSvc/"
+    "getCtprvnRltmMesureDnsty"
+)
 
 def get_air_quality_data(service_key, sido_name):
     if not service_key:
