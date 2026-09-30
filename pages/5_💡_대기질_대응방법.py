@@ -110,57 +110,124 @@ st.divider()
 # 상황별 대응 방법
 # -------------------------
 
-st.subheader("📌 상황별 대응 방법")
+st.subheader("📌 현재 대기질에 따른 대응 방법")
 
-situation = st.selectbox(
-    "현재 상황을 선택하세요.",
-    [
-        "미세먼지가 높은 경우",
-        "오존이 높은 경우",
-        "대기질이 전반적으로 양호한 경우"
-    ]
-)
+data = st.session_state.air_data
 
-
-if situation == "미세먼지가 높은 경우":
+if not data:
 
     st.warning(
-        """
-        🌫️ 미세먼지 농도가 높은 경우
-
-        1. 실시간 대기질 정보를 확인합니다.
-        2. 장시간 야외활동을 줄이는 것을 고려합니다.
-        3. 외부 공기 상태를 확인하여 환기 시간을 조절합니다.
-        4. 실내 먼지가 발생하지 않도록 관리합니다.
-        """
+        "먼저 '전국 대기질 조회' 페이지에서 데이터를 불러오세요."
     )
-
-
-elif situation == "오존이 높은 경우":
-
-    st.warning(
-        """
-        ☀️ 오존 농도가 높은 경우
-
-        1. 오존 농도가 높은 시간대를 확인합니다.
-        2. 해당 시간대의 장시간 야외활동을 줄이는 것을 고려합니다.
-        3. 실외 대기질을 확인하면서 환기 시간을 조절합니다.
-        """
-    )
-
 
 else:
 
-    st.success(
-        """
-        🌱 현재 대기질이 비교적 양호한 경우
+    station_names = []
 
-        1. 현재 상태를 지속적으로 확인합니다.
-        2. 적절한 시간에 환기합니다.
-        3. 실내 공기질도 함께 관리합니다.
-        """
+    for record in data:
+
+        station_name = record.get(
+            "stationName",
+            "알 수 없는 측정소"
+        )
+
+        if station_name not in station_names:
+            station_names.append(station_name)
+
+
+    selected_station = st.selectbox(
+        "측정소를 선택하세요.",
+        station_names
     )
 
+
+    selected_record = None
+
+    for record in data:
+
+        if record.get("stationName") == selected_station:
+            selected_record = record
+            break
+
+
+    if selected_record:
+
+        pm10 = selected_record.get("pm10Value")
+        pm25 = selected_record.get("pm25Value")
+        o3 = selected_record.get("o3Value")
+
+
+        st.write("### 현재 측정값")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("PM10", pm10 if pm10 else "-")
+
+        with col2:
+            st.metric("PM2.5", pm25 if pm25 else "-")
+
+        with col3:
+            st.metric("오존(O₃)", o3 if o3 else "-")
+
+
+        st.write("### 💡 대응 방법")
+
+
+        try:
+
+            if float(pm10) > 80:
+
+                st.warning(
+                    """
+                    🌫️ PM10 농도가 높은 상태입니다.
+
+                    • 외부 대기질을 확인하세요.
+                    • 장시간 야외활동을 줄이는 것을 고려하세요.
+                    • 환기 시간을 조절하세요.
+                    """
+                )
+
+            elif float(pm25) > 35:
+
+                st.warning(
+                    """
+                    🌫️ PM2.5 농도가 높은 상태입니다.
+
+                    • 실외 대기질을 확인하세요.
+                    • 장시간 야외활동을 줄이는 것을 고려하세요.
+                    • 외부 공기 상태를 확인하여 환기 시간을 조절하세요.
+                    """
+                )
+
+            elif float(o3) > 0.09:
+
+                st.warning(
+                    """
+                    ☀️ 오존 농도가 높은 상태입니다.
+
+                    • 오존 농도가 높은 시간대를 확인하세요.
+                    • 장시간 야외활동을 줄이는 것을 고려하세요.
+                    """
+                )
+
+            else:
+
+                st.success(
+                    """
+                    🌱 현재 주요 대기오염물질의 농도가
+                    비교적 낮은 상태입니다.
+
+                    • 현재 대기질 상태를 지속적으로 확인하세요.
+                    • 적절한 시간에 환기하세요.
+                    """
+                )
+
+        except (ValueError, TypeError):
+
+            st.info(
+                "일부 측정값이 없어 현재 상태를 정확하게 판단하기 어렵습니다."
+            )
 
 st.divider()
 
