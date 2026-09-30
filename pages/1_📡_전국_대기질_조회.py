@@ -3,6 +3,14 @@ import streamlit as st
 from utils.api import get_air_quality_data
 
 
+# 세션 상태 초기화
+if "air_data" not in st.session_state:
+    st.session_state.air_data = []
+
+if "history" not in st.session_state:
+    st.session_state.history = {}
+
+
 st.title("📡 전국 대기질 조회")
 
 st.write(
