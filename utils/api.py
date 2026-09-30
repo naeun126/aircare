@@ -20,7 +20,7 @@ def get_air_quality_data(service_key, sido_name):
             "공공데이터 API 인증키가 설정되지 않았습니다."
         )
 
-service_key = urllib.parse.unquote(service_key)
+    service_key = urllib.parse.unquote(service_key)
 
     
     params = {
