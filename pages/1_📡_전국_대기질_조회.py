@@ -115,7 +115,52 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
             f"예상하지 못한 오류가 발생했습니다: {error}"
         )
 
+# 미세먼지 농도에 따른 색상 표시
+def show_pollutant_status(name, value, limits):
 
+    try:
+        value = float(value)
+    except (ValueError, TypeError):
+        st.info(f"{name}: 측정값 없음")
+        return
+
+    if value < 0:
+        st.info(f"{name}: 유효하지 않은 측정값")
+        return
+
+    if value <= limits[0]:
+        color = "#2E9D50"
+        status = "좋음"
+
+    elif value <= limits[1]:
+        color = "#E5B900"
+        status = "보통"
+
+    elif value <= limits[2]:
+        color = "#E87524"
+        status = "나쁨"
+
+    else:
+        color = "#D93636"
+        status = "매우 나쁨"
+
+    st.markdown(
+        f"""
+        <div style="
+            background-color: {color};
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 5px 0 12px 0;
+        ">
+            <b>{name}</b><br>
+            농도: {value:g}<br>
+            상태: {status}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
 data = st.session_state.air_data
 
 if data:
