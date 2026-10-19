@@ -255,6 +255,34 @@ if data:
                 (15, 35, 75)
             )
 
+                st.subheader("📊 주요 대기오염물질 농도 비교")
+
+        pollutant_values = {
+            "PM10": selected_record.get("pm10Value"),
+            "PM2.5": selected_record.get("pm25Value"),
+            "O₃": selected_record.get("o3Value"),
+            "NO₂": selected_record.get("no2Value"),
+            "CO": selected_record.get("coValue"),
+            "SO₂": selected_record.get("so2Value")
+        }
+
+        chart_values = {}
+
+        for name, value in pollutant_values.items():
+            try:
+                number = float(value)
+
+                if number >= 0:
+                    chart_values[name] = number
+
+            except (ValueError, TypeError):
+                continue
+
+        if chart_values:
+            st.bar_chart(chart_values)
+        else:
+            st.info("그래프로 표시할 측정값이 없습니다.")
+            
         st.write(
             "측정 시간:",
             selected_record.get("dataTime", "-")
