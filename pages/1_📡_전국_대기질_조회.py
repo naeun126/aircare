@@ -169,6 +169,8 @@ if data:
         f"📍 {sido_name} 측정소 목록"
     )
 
+    st.write("선택한 지역:", repr(sido_name))
+
     station_names = []
 
     for record in data:
