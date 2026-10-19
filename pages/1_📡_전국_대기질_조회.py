@@ -255,7 +255,7 @@ if data:
                 (15, 35, 75)
             )
 
-                st.subheader("📊 주요 대기오염물질 농도 비교")
+        st.subheader("📊 주요 대기오염물질 농도 비교")
 
         pollutant_values = {
             "PM10": selected_record.get("pm10Value"),
