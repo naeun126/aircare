@@ -237,7 +237,7 @@ if data:
                 selected_record.get("so2Value", "-")
             )
 
-                st.subheader("🎨 미세먼지 농도 상태")
+        st.subheader("🎨 미세먼지 농도 상태")
 
         status_col1, status_col2 = st.columns(2)
 
