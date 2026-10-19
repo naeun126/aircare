@@ -265,9 +265,6 @@ if data:
             selected_record.get("stationName", "-")
         )
 
-        with st.expander("전체 데이터 보기"):
-            st.json(selected_record)
-
 else:
 
     st.info(
