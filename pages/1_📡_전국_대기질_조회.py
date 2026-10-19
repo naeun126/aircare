@@ -237,6 +237,24 @@ if data:
                 selected_record.get("so2Value", "-")
             )
 
+                st.subheader("🎨 미세먼지 농도 상태")
+
+        status_col1, status_col2 = st.columns(2)
+
+        with status_col1:
+            show_pollutant_status(
+                "PM10",
+                selected_record.get("pm10Value"),
+                (30, 80, 150)
+            )
+
+        with status_col2:
+            show_pollutant_status(
+                "PM2.5",
+                selected_record.get("pm25Value"),
+                (15, 35, 75)
+            )
+
         st.write(
             "측정 시간:",
             selected_record.get("dataTime", "-")
