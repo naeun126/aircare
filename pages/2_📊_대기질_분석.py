@@ -2,6 +2,14 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
+# 세션 상태 초기화
+if "air_data" not in st.session_state:
+    st.session_state.air_data = []
+
+if "history" not in st.session_state:
+    st.session_state.history = {}
+
+
 from utils.analysis import (
     calculate_average,
     calculate_max,
