@@ -1,21 +1,26 @@
+
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
-
-# 세션 상태 초기화
-if "air_data" not in st.session_state:
-    st.session_state.air_data = []
-
-if "history" not in st.session_state:
-    st.session_state.history = {}
-
 
 from utils.analysis import (
     calculate_average,
     calculate_max,
     calculate_min,
-    calculate_trend
+    calculate_trend,
 )
+from utils.stations import get_station_coordinates
+
+
+# ========================================
+# 세션 상태 초기화
+# ========================================
+
+if "air_data" not in st.session_state:
+    st.session_state.air_data = []
+
+if "history" not in st.session_state:
+    st.session_state.history = {}
 
 
 st.title("📊 대기질 분석")
@@ -29,85 +34,57 @@ if not data:
     st.stop()
 
 
+# ========================================
+# 대기오염물질 분석
+# ========================================
+
 column_map = {
     "PM10": "pm10Value",
     "PM2.5": "pm25Value",
     "오존(O₃)": "o3Value",
     "이산화질소(NO₂)": "no2Value",
     "일산화탄소(CO)": "coValue",
-    "아황산가스(SO₂)": "so2Value"
+    "아황산가스(SO₂)": "so2Value",
 }
 
 selected_name = st.selectbox(
     "분석할 대기오염물질을 선택하세요.",
-    list(column_map.keys())
+    list(column_map.keys()),
 )
 
 column = column_map[selected_name]
 
-
-average = calculate_average(
-    data,
-    column
-)
-
-maximum = calculate_max(
-    data,
-    column
-)
-
-minimum = calculate_min(
-    data,
-    column
-)
-
-trend = calculate_trend(
-    data,
-    column
-)
-
+average = calculate_average(data, column)
+maximum = calculate_max(data, column)
+minimum = calculate_min(data, column)
+trend = calculate_trend(data, column)
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if average is not None:
-        st.metric(
-            "평균",
-            f"{average:.2f}"
-        )
-    else:
-        st.metric("평균", "-")
-
-with col2:
-    if maximum is not None:
-        st.metric(
-            "최대값",
-            f"{maximum:.2f}"
-        )
-    else:
-        st.metric("최대값", "-")
-
-with col3:
-    if minimum is not None:
-        st.metric(
-            "최소값",
-            f"{minimum:.2f}"
-        )
-    else:
-        st.metric("최소값", "-")
-
-with col4:
     st.metric(
-        "변화",
-        trend
+        "평균",
+        f"{average:.2f}" if average is not None else "-",
     )
 
+with col2:
+    st.metric(
+        "최대값",
+        f"{maximum:.2f}" if maximum is not None else "-",
+    )
+
+with col3:
+    st.metric(
+        "최소값",
+        f"{minimum:.2f}" if minimum is not None else "-",
+    )
+
+with col4:
+    st.metric("변화", trend)
 
 st.divider()
 
-st.subheader(
-    f"📈 측정소별 {selected_name} 비교"
-)
+st.subheader(f"📈 측정소별 {selected_name} 비교")
 
 
 # ========================================
@@ -121,7 +98,7 @@ map_pollutant = st.radio(
     "지도에 표시할 미세먼지",
     ["PM10", "PM2.5"],
     horizontal=True,
-    key="map_pollutant"
+    key="map_pollutant",
 )
 
 map_column = (
@@ -130,30 +107,49 @@ map_column = (
     else "pm25Value"
 )
 
-# 측정소 이름별 위도, 경도
-# 아래는 좌표 등록 방법을 보여 주는 예시야.
-# 실제 측정소의 정확한 좌표로 교체해야 해.
-station_coordinates = {
-    "중구": (37.564, 126.997),
-    "종로구": (37.572, 126.979),
-    "강남구": (37.517, 127.047),
-    "마포구": (37.566, 126.901),
-}
 
-st.write("API에서 받은 측정소 이름")
+# ========================================
+# 에어코리아 측정소 좌표 조회
+# ========================================
 
-st.write([
-    record.get("stationName")
-    for record in data
-])
+try:
+    service_key = st.secrets["service_key"]
+
+    station_coordinates = get_station_coordinates(
+        service_key
+    )
+
+except KeyError:
+    st.error(
+        "서비스 키를 찾을 수 없어. "
+        ".streamlit/secrets.toml에 service_key가 있는지 확인해 줘."
+    )
+    st.stop()
+
+except RuntimeError as e:
+    st.error(f"측정소 좌표 조회 실패: {e}")
+    st.stop()
+
+
+st.caption(
+    f"측정소 좌표 {len(station_coordinates)}개를 조회했어."
+)
+
+
+# ========================================
+# 농도별 지도 데이터 생성
+# ========================================
 
 map_points = []
 
 for record in data:
-    station = record.get("stationName", "")
+    station = str(
+        record.get("stationName") or ""
+    ).strip()
+
     raw_value = record.get(map_column)
 
-    # 좌표가 등록된 측정소만 지도에 표시
+    # 좌표가 없는 측정소는 제외
     if station not in station_coordinates:
         continue
 
@@ -162,12 +158,13 @@ for record in data:
     except (ValueError, TypeError):
         continue
 
-    if value < 0:
+    # 측정값이 없거나 유효하지 않은 경우 제외
+    if not pd.notna(value) or value < 0:
         continue
 
     lat, lon = station_coordinates[station]
 
-    # PM10과 PM2.5의 등급 기준을 각각 적용
+    # 참고용 농도 구간
     if map_pollutant == "PM10":
         limits = (30, 80, 150)
     else:
@@ -192,8 +189,13 @@ for record in data:
         "등급": grade,
         "위도": lat,
         "경도": lon,
-        "색상": color
+        "색상": color,
     })
+
+
+# ========================================
+# PyDeck 지도 출력
+# ========================================
 
 if map_points:
     map_df = pd.DataFrame(map_points)
@@ -211,8 +213,8 @@ if map_points:
     )
 
     view = pdk.ViewState(
-        latitude=map_df["위도"].mean(),
-        longitude=map_df["경도"].mean(),
+        latitude=float(map_df["위도"].mean()),
+        longitude=float(map_df["경도"].mean()),
         zoom=8,
         pitch=0,
     )
@@ -234,18 +236,40 @@ if map_points:
         map_style=None,
     )
 
-    st.pydeck_chart(deck, use_container_width=True)
+    st.pydeck_chart(
+        deck,
+        use_container_width=True,
+    )
 
     st.caption(
-        "점에 마우스를 올리면 측정소와 농도를 확인할 수 있어."
+        "점에 마우스를 올리면 측정소 이름과 농도를 확인할 수 있어."
     )
+
+    # 지도에 실제로 표시된 측정소 목록
+    with st.expander("지도에 표시된 측정소 확인"):
+        display_df = map_df[
+            ["측정소", "농도", "등급"]
+        ].rename(
+            columns={
+                "측정소": "측정소 이름",
+                "농도": f"{map_pollutant} 농도",
+                "등급": "참고 등급",
+            }
+        )
+
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
 else:
-    st.info(
+    st.warning(
         "지도에 표시할 측정소가 없어. "
-        "station_coordinates에 실제 측정소 좌표를 등록해 줘."
+        "측정소 이름과 좌표 조회 결과가 일치하는지 확인해 줘."
     )
 
 st.caption(
-    "색상은 참고용 등급 기준이야. "
-    "정확한 좌표가 등록된 측정소만 표시돼."
+    "색상 구간은 참고용이며, 공식 대기질 등급과 다를 수 있어. "
+    "조회된 좌표와 농도 데이터가 있는 측정소만 표시돼."
 )
