@@ -43,100 +43,6 @@ sido_name = st.selectbox(
     sido_list
 )
 
- st.subheader("🌏 현재 대기질 요약")
-
-        pm10 = selected_record.get("pm10Value")
-        pm25 = selected_record.get("pm25Value")
-
-        def get_pm_status(value, limits):
-            try:
-                value = float(value)
-            except (ValueError, TypeError):
-                return None
-
-            if value < 0:
-                return None
-            elif value <= limits[0]:
-                return (0, "좋음", "#2E9D50")
-            elif value <= limits[1]:
-                return (1, "보통", "#B28B00")
-            elif value <= limits[2]:
-                return (2, "나쁨", "#E87524")
-            else:
-                return (3, "매우 나쁨", "#D93636")
-
-        pm10_status = get_pm_status(
-            pm10, (30, 80, 150)
-        )
-
-        pm25_status = get_pm_status(
-            pm25, (15, 35, 75)
-        )
-
-        statuses = [
-            status for status in
-            [pm10_status, pm25_status]
-            if status is not None
-        ]
-
-        if statuses:
-            overall = max(statuses, key=lambda item: item[0])
-            grade = overall[1]
-            color = overall[2]
-
-            if grade == "좋음":
-                message = "현재 미세먼지 농도가 낮은 상태입니다."
-            elif grade == "보통":
-                message = "현재 미세먼지 농도를 계속 확인하세요."
-            elif grade == "나쁨":
-                message = "실외 대기질을 확인하고 야외활동에 유의하세요."
-            else:
-                message = "실외 대기질을 확인하고 장시간 야외활동을 줄이는 것을 고려하세요."
-
-            st.markdown(
-                f"""
-                <div style="
-                    background-color: {color};
-                    color: white;
-                    padding: 22px;
-                    border-radius: 15px;
-                    margin-bottom: 15px;
-                ">
-                    <div style="font-size: 14px;">
-                        AIRCARE · 미세먼지 참고 등급
-                    </div>
-                    <div style="
-                        font-size: 32px;
-                        font-weight: bold;
-                        margin: 8px 0;
-                    ">
-                        {grade}
-                    </div>
-                    <div>{message}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.info("미세먼지 측정값이 없어 상태를 표시할 수 없습니다.")
-
-        status_col1, status_col2 = st.columns(2)
-
-        with status_col1:
-            show_pollutant_status(
-                "PM10",
-                pm10,
-                (30, 80, 150)
-            )
-
-        with status_col2:
-            show_pollutant_status(
-                "PM2.5",
-                pm25,
-                (15, 35, 75)
-            )
-
-
 if st.button("🔄 최신 대기질 데이터 불러오기"):
 
     try:
@@ -288,11 +194,101 @@ if data:
             selected_record = record
             break
 
+    
     if selected_record:
 
+        # 현재 대기질 요약
+        st.subheader("🌏 현재 대기질 요약")
+
+        pm10 = selected_record.get("pm10Value")
+        pm25 = selected_record.get("pm25Value")
+
+        def get_pm_status(value, limits):
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                return None
+
+            if value < 0:
+                return None
+            elif value <= limits[0]:
+                return (0, "좋음", "#2E9D50")
+            elif value <= limits[1]:
+                return (1, "보통", "#B28B00")
+            elif value <= limits[2]:
+                return (2, "나쁨", "#E87524")
+            else:
+                return (3, "매우 나쁨", "#D93636")
+
+        pm10_status = get_pm_status(pm10, (30, 80, 150))
+        pm25_status = get_pm_status(pm25, (15, 35, 75))
+
+        statuses = [
+            status for status in [pm10_status, pm25_status]
+            if status is not None
+        ]
+
+        if statuses:
+            overall = max(statuses, key=lambda item: item[0])
+            grade = overall[1]
+            color = overall[2]
+
+            if grade == "좋음":
+                message = "현재 미세먼지 농도가 낮은 상태입니다."
+            elif grade == "보통":
+                message = "현재 미세먼지 농도를 계속 확인하세요."
+            elif grade == "나쁨":
+                message = "실외 대기질을 확인하고 야외활동에 유의하세요."
+            else:
+                message = (
+                    "실외 대기질을 확인하고 장시간 야외활동을 "
+                    "줄이는 것을 고려하세요."
+                )
+
+            st.markdown(
+                f"""
+                <div style="
+                    background-color: {color};
+                    color: white;
+                    padding: 22px;
+                    border-radius: 15px;
+                    margin-bottom: 15px;
+                ">
+                    <div style="font-size: 14px;">
+                        AIRCARE · 미세먼지 참고 등급
+                    </div>
+                    <div style="
+                        font-size: 32px;
+                        font-weight: bold;
+                        margin: 8px 0;
+                    ">
+                        {grade}
+                    </div>
+                    <div>{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            st.info("미세먼지 측정값이 없어 상태를 표시할 수 없습니다.")
+
+        status_col1, status_col2 = st.columns(2)
+
+        with status_col1:
+            show_pollutant_status(
+                "PM10", pm10, (30, 80, 150)
+            )
+
+        with status_col2:
+            show_pollutant_status(
+                "PM2.5", pm25, (15, 35, 75)
+            )
+
+        # 기존 측정값 표시 코드는 아래에 그대로 유지
         st.subheader(
             f"📊 {selected_station} 최신 측정값"
         )
+
 
         col1, col2, col3 = st.columns(3)
         col4, col5, col6 = st.columns(3)
