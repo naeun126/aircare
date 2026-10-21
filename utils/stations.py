@@ -25,8 +25,18 @@ def get_station_coordinates(service_key):
             params=params,
             timeout=15,
         )
-        response.raise_for_status()
-        result = response.json()
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"HTTP 상태 코드: {response.status_code}\n"
+                f"서버 응답: {response.text[:500]}"
+            )
+
+        try:
+            result = response.json()
+        except ValueError as e:
+            raise RuntimeError(
+                f"JSON 응답을 읽지 못했어: {response.text[:300]}"
+            ) from e
 
     except (requests.RequestException, ValueError) as e:
         raise RuntimeError(
