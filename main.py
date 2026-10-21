@@ -115,6 +115,10 @@ with col3:
     st.markdown("### 🔮 대기질 예측")
     st.write("저장된 측정값을 이용하여 다음 값을 간단하게 예측합니다.")
 
+with col4:
+    st.markdown("### 💡대기질 대응 방법")
+    st.write("대기질 데이터를 바탕으로 대응방법을 안내합니다.")
+
 st.divider()
 
 st.info(
@@ -139,7 +143,3 @@ st.sidebar.info(
     """
 )
 
-
-st.info(
-    "👈 왼쪽 사이드바에서 원하는 기능을 선택하세요."
-)
