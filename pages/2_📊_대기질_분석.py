@@ -140,6 +140,13 @@ station_coordinates = {
     "마포구": (37.566, 126.901),
 }
 
+st.write("API에서 받은 측정소 이름")
+
+st.write([
+    record.get("stationName")
+    for record in data
+])
+
 map_points = []
 
 for record in data:
@@ -242,95 +249,3 @@ st.caption(
     "색상은 참고용 등급 기준이야. "
     "정확한 좌표가 등록된 측정소만 표시돼."
 )
-
-
-
-# ========================================
-# 시간에 따른 미세먼지 농도 변화
-# ========================================
-
-st.divider()
-st.subheader("📈 시간에 따른 미세먼지 농도 변화")
-
-history = st.session_state.get("history", {})
-
-if history:
-    available_stations = sorted(history.keys())
-
-    trend_station = st.selectbox(
-        "분석할 측정소",
-        available_stations,
-        key="analysis_trend_station"
-    )
-
-    trend_pollutant = st.radio(
-        "분석할 물질",
-        ["PM10", "PM2.5"],
-        horizontal=True,
-        key="analysis_trend_pollutant"
-    )
-
-    trend_column = (
-        "pm10Value"
-        if trend_pollutant == "PM10"
-        else "pm25Value"
-    )
-
-    trend_records = []
-
-    for record in history.get(trend_station, []):
-        time_value = record.get("dataTime")
-        raw_value = record.get(trend_column)
-
-        try:
-            value = float(raw_value)
-        except (ValueError, TypeError):
-            continue
-
-        if not time_value or value < 0:
-            continue
-
-        trend_records.append({
-            "측정 시각": time_value,
-            "농도": value
-        })
-
-    # 시간순 정렬 후 동일 시각의 중복 기록 제거
-    unique_records = {
-        item["측정 시각"]: item
-        for item in trend_records
-    }
-
-    trend_records = sorted(
-        unique_records.values(),
-        key=lambda item: item["측정 시각"]
-    )
-
-    if len(trend_records) >= 2:
-        trend_df = pd.DataFrame(trend_records)
-
-        st.line_chart(
-            trend_df,
-            x="측정 시각",
-            y="농도",
-            x_label="측정 시각",
-            y_label=f"{trend_pollutant} 농도",
-            use_container_width=True
-        )
-
-        st.caption(
-            f"총 {len(trend_records)}개의 시간별 기록을 표시하고 있어."
-        )
-    elif len(trend_records) == 1:
-        st.info(
-            "저장된 기록이 1개야. "
-            "첫 번째 페이지에서 시간을 두고 다시 조회하면 "
-            "변화를 비교할 수 있어."
-        )
-    else:
-        st.info("그래프로 표시할 유효한 측정값이 없어.")
-else:
-    st.info(
-        "저장된 측정 기록이 없어. "
-        "첫 번째 페이지에서 먼저 대기질 데이터를 조회해 줘."
-    )
