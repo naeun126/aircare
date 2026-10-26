@@ -22,14 +22,38 @@ if "air_data" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = {}
 
+if "selected_sido" not in st.session_state:
+    st.session_state.selected_sido = "서울"
+
 
 st.title("📊 대기질 분석")
 
-data = st.session_state.air_data
+# 1페이지에서 선택한 지역
+selected_sido = st.session_state.selected_sido
+
+st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
+
+# 조회 데이터 중 선택한 시도의 데이터만 사용
+all_data = st.session_state.air_data
+
+data = [
+    record
+    for record in all_data
+    if str(record.get("sidoName") or "").strip() == selected_sido
+]
+
+# API 응답에 sidoName이 없을 때는 기존 데이터 전체를 사용하지 않고 안내
+if all_data and not any(record.get("sidoName") for record in all_data):
+    st.warning(
+        "현재 측정 데이터에 시도 정보가 없어 지역별 필터링을 할 수 없습니다. "
+        "1페이지에서 선택한 지역을 다시 조회해 주세요."
+    )
+    st.stop()
 
 if not data:
     st.warning(
-        "먼저 '전국 대기질 조회' 페이지에서 데이터를 불러오세요."
+        f"{selected_sido} 지역의 데이터가 없습니다. "
+        "1페이지에서 해당 지역을 선택한 뒤 데이터를 다시 불러오세요."
     )
     st.stop()
 
@@ -62,22 +86,13 @@ trend = calculate_trend(data, column)
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric(
-        "평균",
-        f"{average:.2f}" if average is not None else "-",
-    )
+    st.metric("평균", f"{average:.2f}" if average is not None else "-")
 
 with col2:
-    st.metric(
-        "최대값",
-        f"{maximum:.2f}" if maximum is not None else "-",
-    )
+    st.metric("최대값", f"{maximum:.2f}" if maximum is not None else "-")
 
 with col3:
-    st.metric(
-        "최소값",
-        f"{minimum:.2f}" if minimum is not None else "-",
-    )
+    st.metric("최소값", f"{minimum:.2f}" if minimum is not None else "-")
 
 with col4:
     st.metric("변화", trend)
@@ -88,7 +103,7 @@ with col4:
 # ========================================
 
 st.divider()
-st.subheader(f"📈 측정소별 {selected_name} 비교")
+st.subheader(f"📈 {selected_sido} 측정소별 {selected_name} 비교")
 
 comparison_points = []
 
@@ -112,7 +127,6 @@ for record in data:
 if comparison_points:
     comparison_df = pd.DataFrame(comparison_points)
 
-    # 같은 측정소가 여러 번 있다면 평균값으로 정리
     comparison_df = (
         comparison_df
         .groupby("측정소", as_index=False)["농도"]
@@ -128,7 +142,7 @@ if comparison_points:
         use_container_width=True,
     )
 else:
-    st.info("비교할 수 있는 측정소별 농도 데이터가 없어.")
+    st.info("비교할 수 있는 측정소별 농도 데이터가 없습니다.")
 
 
 # ========================================
@@ -136,7 +150,7 @@ else:
 # ========================================
 
 st.divider()
-st.subheader("🗺️ 측정소별 미세먼지 농도 지도")
+st.subheader(f"🗺️ {selected_sido} 측정소별 미세먼지 지도")
 
 map_pollutant = st.radio(
     "지도에 표시할 미세먼지",
@@ -151,26 +165,13 @@ map_column = (
     else "pm25Value"
 )
 
-
-# ========================================
-# CSV 파일에서 전국 측정소 좌표 조회
-# ========================================
-
 try:
     station_coordinates = get_station_coordinates()
-
 except (RuntimeError, OSError, ValueError) as e:
     st.error(f"측정소 좌표 조회 실패: {e}")
     st.stop()
 
-st.caption(
-    f"측정소 좌표 {len(station_coordinates)}개를 불러왔어."
-)
-
-
-# ========================================
-# 농도별 지도 데이터 생성
-# ========================================
+st.caption(f"전국 측정소 좌표 {len(station_coordinates)}개를 불러왔습니다.")
 
 map_points = []
 
@@ -180,10 +181,7 @@ else:
     limits = (15, 35, 75)
 
 for record in data:
-    station = str(
-        record.get("stationName") or ""
-    ).strip()
-
+    station = str(record.get("stationName") or "").strip()
     raw_value = record.get(map_column)
 
     if station not in station_coordinates:
@@ -224,7 +222,7 @@ for record in data:
 
 
 # ========================================
-# PyDeck 지도 출력
+# 지도 출력
 # ========================================
 
 if map_points:
@@ -280,14 +278,11 @@ if map_points:
         map_style=None,
     )
 
-    st.pydeck_chart(
-        deck,
-        use_container_width=True,
-    )
+    st.pydeck_chart(deck, use_container_width=True)
 
     st.caption(
-        f"원 안의 숫자는 {map_pollutant} 농도야. "
-        "원에 마우스를 올리면 측정소 이름과 참고 등급을 확인할 수 있어."
+        f"원 안의 숫자는 {map_pollutant} 농도입니다. "
+        "원에 마우스를 올리면 측정소와 참고 등급을 확인할 수 있습니다."
     )
 
     with st.expander("지도에 표시된 측정소 확인"):
@@ -306,14 +301,12 @@ if map_points:
             use_container_width=True,
             hide_index=True,
         )
-
 else:
     st.warning(
-        "지도에 표시할 측정소가 없어. "
-        "측정소 이름과 좌표 조회 결과가 일치하는지 확인해 줘."
+        f"{selected_sido} 지역에서 지도에 표시할 측정소가 없습니다. "
+        "측정소 이름과 좌표를 확인해 주세요."
     )
 
 st.caption(
-    "색상 구간은 참고용이며, 공식 대기질 등급과 다를 수 있어. "
-    "조회된 좌표와 농도 데이터가 있는 측정소만 표시돼."
+    "색상 구간은 참고용이며 공식 대기질 등급과 다를 수 있습니다."
 )
