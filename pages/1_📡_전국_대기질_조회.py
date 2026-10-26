@@ -38,10 +38,17 @@ sido_list = [
     "제주"
 ]
 
+
+# 이전에 선택한 지역 유지
+if "selected_sido" not in st.session_state:
+    st.session_state["selected_sido"] = "서울"
+
 sido_name = st.selectbox(
     "조회할 지역을 선택하세요.",
-    sido_list
+    sido_list,
+    key="selected_sido",
 )
+
 
 if st.button("🔄 최신 대기질 데이터 불러오기"):
 
