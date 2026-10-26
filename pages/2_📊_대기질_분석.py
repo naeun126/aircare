@@ -109,26 +109,19 @@ map_column = (
 
 
 # ========================================
-# 에어코리아 측정소 좌표 조회
+# CSV 파일에서 전국 측정소 좌표 조회
 # ========================================
 
 try:
-    service_key = st.secrets["service_key"]
+    station_coordinates = get_station_coordinates()
 
-    station_coordinates = get_station_coordinates(
-        service_key
-    )
-
-except KeyError:
-    st.error(
-        "서비스 키를 찾을 수 없어. "
-        ".streamlit/secrets.toml에 service_key가 있는지 확인해 줘."
-    )
-    st.stop()
-
-except RuntimeError as e:
+except (RuntimeError, OSError, ValueError) as e:
     st.error(f"측정소 좌표 조회 실패: {e}")
     st.stop()
+
+st.caption(
+    f"측정소 좌표 {len(station_coordinates)}개를 불러왔어."
+)
 
 
 st.caption(
