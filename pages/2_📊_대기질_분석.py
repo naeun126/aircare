@@ -176,14 +176,19 @@ for record in data:
         color = [217, 54, 54]
         grade = "매우 나쁨"
 
-    map_points.append({
-        "측정소": station,
-        "농도": value,
-        "등급": grade,
-        "위도": lat,
-        "경도": lon,
-        "색상": color,
-    })
+   map_points.append({
+    "측정소": station,
+    "농도": value,
+    "표시값": f"{value:g}",
+    "등급": grade,
+    "위도": lat,
+    "경도": lon,
+    "색상": color,
+   })
+
+# ========================================
+# PyDeck 지도 출력
+# ========================================
 
 
 # ========================================
@@ -193,16 +198,32 @@ for record in data:
 if map_points:
     map_df = pd.DataFrame(map_points)
 
-    layer = pdk.Layer(
+    # 농도에 따라 색상이 다른 원 표시
+    circle_layer = pdk.Layer(
         "ScatterplotLayer",
         data=map_df,
         get_position="[경도, 위도]",
         get_fill_color="색상",
-        get_radius=700,
-        radius_min_pixels=7,
-        radius_max_pixels=20,
+        get_radius=1000,
+        radius_min_pixels=13,
+        radius_max_pixels=24,
         pickable=True,
-        opacity=0.85,
+        opacity=0.9,
+    )
+
+    # 원 위에 농도 숫자 표시
+    text_layer = pdk.Layer(
+        "TextLayer",
+        data=map_df,
+        get_position="[경도, 위도]",
+        get_text="표시값",
+        get_size=13,
+        get_color=[20, 20, 20, 255],
+        get_text_anchor="'middle'",
+        get_alignment_baseline="'center'",
+        get_pixel_offset=[0, 0],
+        billboard=True,
+        pickable=True,
     )
 
     view = pdk.ViewState(
@@ -213,13 +234,13 @@ if map_points:
     )
 
     deck = pdk.Deck(
-        layers=[layer],
+        layers=[circle_layer, text_layer],
         initial_view_state=view,
         tooltip={
             "html": (
                 "<b>측정소:</b> {측정소}<br/>"
-                "<b>농도:</b> {농도}<br/>"
-                "<b>상태:</b> {등급}"
+                f"<b>{map_pollutant}:</b> {{농도}}<br/>"
+                "<b>참고 등급:</b> {등급}"
             ),
             "style": {
                 "backgroundColor": "white",
@@ -235,10 +256,10 @@ if map_points:
     )
 
     st.caption(
-        "점에 마우스를 올리면 측정소 이름과 농도를 확인할 수 있어."
+        f"원 안의 숫자는 {map_pollutant} 농도야. "
+        "원에 마우스를 올리면 측정소 이름과 참고 등급도 확인할 수 있어."
     )
 
-    # 지도에 실제로 표시된 측정소 목록
     with st.expander("지도에 표시된 측정소 확인"):
         display_df = map_df[
             ["측정소", "농도", "등급"]
@@ -261,6 +282,7 @@ else:
         "지도에 표시할 측정소가 없어. "
         "측정소 이름과 좌표 조회 결과가 일치하는지 확인해 줘."
     )
+
 
 st.caption(
     "색상 구간은 참고용이며, 공식 대기질 등급과 다를 수 있어. "
