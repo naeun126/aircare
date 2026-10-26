@@ -82,8 +82,53 @@ with col3:
 with col4:
     st.metric("변화", trend)
 
+
+# ========================================
+# 측정소별 농도 비교 그래프
+# ========================================
+
 st.divider()
 st.subheader(f"📈 측정소별 {selected_name} 비교")
+
+comparison_points = []
+
+for record in data:
+    station = str(record.get("stationName") or "").strip()
+    raw_value = record.get(column)
+
+    try:
+        value = float(raw_value)
+    except (ValueError, TypeError):
+        continue
+
+    if not station or not pd.notna(value) or value < 0:
+        continue
+
+    comparison_points.append({
+        "측정소": station,
+        "농도": value,
+    })
+
+if comparison_points:
+    comparison_df = pd.DataFrame(comparison_points)
+
+    # 같은 측정소가 여러 번 있다면 평균값으로 정리
+    comparison_df = (
+        comparison_df
+        .groupby("측정소", as_index=False)["농도"]
+        .mean()
+        .sort_values("농도", ascending=False)
+    )
+
+    st.bar_chart(
+        comparison_df,
+        x="측정소",
+        y="농도",
+        height=400,
+        use_container_width=True,
+    )
+else:
+    st.info("비교할 수 있는 측정소별 농도 데이터가 없어.")
 
 
 # ========================================
@@ -129,6 +174,11 @@ st.caption(
 
 map_points = []
 
+if map_pollutant == "PM10":
+    limits = (30, 80, 150)
+else:
+    limits = (15, 35, 75)
+
 for record in data:
     station = str(
         record.get("stationName") or ""
@@ -136,7 +186,6 @@ for record in data:
 
     raw_value = record.get(map_column)
 
-    # 좌표가 없는 측정소는 제외
     if station not in station_coordinates:
         continue
 
@@ -145,17 +194,10 @@ for record in data:
     except (ValueError, TypeError):
         continue
 
-    # 측정값이 없거나 유효하지 않은 경우 제외
     if not pd.notna(value) or value < 0:
         continue
 
     lat, lon = station_coordinates[station]
-
-    # 참고용 농도 구간
-    if map_pollutant == "PM10":
-        limits = (30, 80, 150)
-    else:
-        limits = (15, 35, 75)
 
     if value <= limits[0]:
         color = [46, 157, 80]
@@ -170,7 +212,6 @@ for record in data:
         color = [217, 54, 54]
         grade = "매우 나쁨"
 
-    # 원 안에 표시할 농도 숫자
     map_points.append({
         "측정소": station,
         "농도": value,
@@ -189,7 +230,6 @@ for record in data:
 if map_points:
     map_df = pd.DataFrame(map_points)
 
-    # 농도에 따라 색상이 다른 원 표시
     circle_layer = pdk.Layer(
         "ScatterplotLayer",
         data=map_df,
@@ -202,7 +242,6 @@ if map_points:
         opacity=0.9,
     )
 
-    # 원 위에 농도 숫자 표시
     text_layer = pdk.Layer(
         "TextLayer",
         data=map_df,
@@ -248,7 +287,7 @@ if map_points:
 
     st.caption(
         f"원 안의 숫자는 {map_pollutant} 농도야. "
-        "원에 마우스를 올리면 측정소 이름과 참고 등급도 확인할 수 있어."
+        "원에 마우스를 올리면 측정소 이름과 참고 등급을 확인할 수 있어."
     )
 
     with st.expander("지도에 표시된 측정소 확인"):
