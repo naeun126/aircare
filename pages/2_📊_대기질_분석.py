@@ -83,7 +83,6 @@ with col4:
     st.metric("변화", trend)
 
 st.divider()
-
 st.subheader(f"📈 측정소별 {selected_name} 비교")
 
 
@@ -121,11 +120,6 @@ except (RuntimeError, OSError, ValueError) as e:
 
 st.caption(
     f"측정소 좌표 {len(station_coordinates)}개를 불러왔어."
-)
-
-
-st.caption(
-    f"측정소 좌표 {len(station_coordinates)}개를 조회했어."
 )
 
 
@@ -176,19 +170,16 @@ for record in data:
         color = [217, 54, 54]
         grade = "매우 나쁨"
 
-   map_points.append({
-    "측정소": station,
-    "농도": value,
-    "표시값": f"{value:g}",
-    "등급": grade,
-    "위도": lat,
-    "경도": lon,
-    "색상": color,
-   })
-
-# ========================================
-# PyDeck 지도 출력
-# ========================================
+    # 원 안에 표시할 농도 숫자
+    map_points.append({
+        "측정소": station,
+        "농도": value,
+        "표시값": f"{value:g}",
+        "등급": grade,
+        "위도": lat,
+        "경도": lon,
+        "색상": color,
+    })
 
 
 # ========================================
@@ -282,7 +273,6 @@ else:
         "지도에 표시할 측정소가 없어. "
         "측정소 이름과 좌표 조회 결과가 일치하는지 확인해 줘."
     )
-
 
 st.caption(
     "색상 구간은 참고용이며, 공식 대기질 등급과 다를 수 있어. "
