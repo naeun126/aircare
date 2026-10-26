@@ -1,89 +1,53 @@
 
-import requests
+from pathlib import Path
+
+import pandas as pd
 import streamlit as st
 
 
+# 프로젝트 최상위 폴더의 data 폴더
+BASE_DIR = Path(__file__).resolve().parent.parent
+COORDINATE_FILE = BASE_DIR / "data" / "station_coordinates.csv"
+
+
 @st.cache_data(ttl=86400)
-def get_station_coordinates(service_key):
-    """에어코리아 측정소 목록에서 측정소별 위도·경도를 가져온다."""
+def get_station_coordinates():
+    """CSV 파일에서 전국 측정소별 위도와 경도를 가져온다."""
 
-    url = (
-        "https://apis.data.go.kr/"
-        "B552584/MsrstnInfoInqireSvc/getMsrstnList"
-    )
+    if not COORDINATE_FILE.exists():
+        raise RuntimeError(
+            f"측정소 좌표 파일을 찾을 수 없어: {COORDINATE_FILE}"
+        )
 
-    params = {
-        "serviceKey": service_key,
-        "returnType": "json",
-        "numOfRows": 1000,
-        "pageNo": 1,
-    }
-
+    # 공공데이터 CSV가 CP949로 저장된 경우도 처리
     try:
-        response = requests.get(
-            url,
-            params=params,
-            timeout=15,
-        )
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"HTTP 상태 코드: {response.status_code}\n"
-                f"서버 응답: {response.text[:500]}"
-            )
+        df = pd.read_csv(COORDINATE_FILE, encoding="cp949")
+    except UnicodeDecodeError:
+        df = pd.read_csv(COORDINATE_FILE, encoding="utf-8-sig")
 
-        try:
-            result = response.json()
-        except ValueError as e:
-            raise RuntimeError(
-                f"JSON 응답을 읽지 못했어: {response.text[:300]}"
-            ) from e
+    required_columns = {"측정소명", "경도", "위도"}
 
-    except (requests.RequestException, ValueError) as e:
+    if not required_columns.issubset(df.columns):
         raise RuntimeError(
-            f"측정소 위치 정보를 가져오지 못했어: {e}"
-        ) from e
-
-    body = result.get("response", {}).get("body", {})
-    header = result.get("response", {}).get("header", {})
-
-    if str(header.get("resultCode", "00")) != "00":
-        raise RuntimeError(
-            "에어코리아 API 오류: "
-            + str(header.get("resultMsg", "원인을 확인할 수 없음"))
+            "CSV에 필요한 열이 없어. 필요한 열: 측정소명, 경도, 위도. "
+            f"현재 열: {list(df.columns)}"
         )
-
-    items = body.get("items", [])
-
-    # API 응답이 목록 또는 딕셔너리로 오는 경우를 모두 처리
-    if isinstance(items, dict):
-        items = items.get("item", [])
-
-    if isinstance(items, dict):
-        items = [items]
 
     coordinates = {}
 
-    for item in items:
-        station = item.get("stationName")
-        raw_lat = item.get("dmX")
-        raw_lon = item.get("dmY")
-
-        if not station or raw_lat is None or raw_lon is None:
-            continue
+    for _, row in df.iterrows():
+        station = str(row["측정소명"]).strip()
 
         try:
-            lat = float(raw_lat)
-            lon = float(raw_lon)
-        except (TypeError, ValueError):
+            lon = float(row["경도"])
+            lat = float(row["위도"])
+        except (ValueError, TypeError):
             continue
 
-        # 유효한 위도·경도만 등록
-        if -90 <= lat <= 90 and -180 <= lon <= 180:
-            coordinates[station.strip()] = (lat, lon)
+        if station and -90 <= lat <= 90 and -180 <= lon <= 180:
+            coordinates[station] = (lat, lon)
 
     if not coordinates:
-        raise RuntimeError(
-            "측정소 좌표가 없어. API 응답과 서비스 키를 확인해 줘."
-        )
+        raise RuntimeError("CSV 파일에서 유효한 측정소 좌표를 찾지 못했어.")
 
     return coordinates
