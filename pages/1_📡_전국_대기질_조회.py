@@ -62,12 +62,13 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
         st.stop()
 
     try:
-        data = get_air_quality_data(
-            service_key,
-            sido_name
-        )
+       data = get_air_quality_data(service_key, sido_name)
 
-        st.session_state.air_data = data
+       # 조회한 데이터에 선택 지역을 기록
+       for record in data:
+           record["_selectedSido"] = sido_name
+
+       st.session_state.air_data = data
 
         # 센서별 기록 저장
         for record in data:
