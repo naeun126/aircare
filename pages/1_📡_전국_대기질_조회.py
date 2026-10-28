@@ -213,7 +213,7 @@ if data:
             elif value <= limits[0]:
                 return (0, "좋음", "#2E9D50")
             elif value <= limits[1]:
-                return (1, "보통", "#B28B00")
+                return (1, "보통", "#E5B900")
             elif value <= limits[2]:
                 return (2, "나쁨", "#E87524")
             else:
