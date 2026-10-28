@@ -70,9 +70,9 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
 
        st.session_state.air_data = data
 
+      
         # 센서별 기록 저장
         for record in data:
-
             station_name = record.get(
                 "stationName",
                 "알 수 없는 측정소"
@@ -82,31 +82,22 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
                 st.session_state.history[station_name] = []
 
             # 중복 측정값 방지
-            data_time = record.get(
-                "dataTime",
-                ""
-            )
+            data_time = record.get("dataTime", "")
 
             duplicate = False
 
-            for old_record in st.session_state.history[
-                station_name
-            ]:
+            for old_record in st.session_state.history[station_name]:
                 if old_record.get("dataTime") == data_time:
                     duplicate = True
                     break
 
             if not duplicate:
-                st.session_state.history[
-                    station_name
-                ].append(record)
+                st.session_state.history[station_name].append(record)
 
             # 최근 20개만 유지
-            st.session_state.history[
-                station_name
-            ] = st.session_state.history[
-                station_name
-            ][-20:]
+            st.session_state.history[station_name] = (
+                st.session_state.history[station_name][-20:]
+            )
 
         st.success(
             f"{sido_name} 지역의 대기질 데이터를 불러왔습니다."
