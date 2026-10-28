@@ -27,10 +27,15 @@ if "selected_sido" not in st.session_state:
 
 st.title("📊 대기질 분석")
 
-# 1페이지에서 선택한 지역
-selected_sido = str(st.session_state.get("selected_sido", "서울")).strip()
-st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
+# 1페이지에서 마지막으로 조회한 지역
+selected_sido = str(
+    st.session_state.get(
+        "air_data_sido",
+        st.session_state.get("selected_sido", "서울")
+    )
+).strip()
 
+st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
 
 # ========================================
 # 선택 지역 데이터 가져오기
