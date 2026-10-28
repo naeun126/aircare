@@ -94,3 +94,18 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
             # 최근 20개만 유지
             st.session_state.history[station_name] = (
                 st.session_state.history[station_name][-20:]
+                
+        st.success(
+            f"{sido_name} 지역의 대기질 데이터를 불러왔습니다."
+        )
+
+    except ValueError as error:
+        st.error(str(error))
+
+    except ConnectionError as error:
+        st.error(str(error))
+
+    except Exception as error:
+        st.error(
+            f"예상하지 못한 오류가 발생했습니다: {error}"
+        )
