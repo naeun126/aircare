@@ -124,14 +124,24 @@ st.subheader(f"📈 {selected_name} 분석")
 
 col1, col2, col3, col4 = st.columns(4)
 
+
 with col1:
-    st.metric("평균 농도", average if average is not None else "-")
+    st.metric(
+        "평균 농도",
+        f"{average:.2f}" if average is not None else "-"
+    )
 
 with col2:
-    st.metric("최고 농도", maximum if maximum is not None else "-")
+    st.metric(
+        "최고 농도",
+        f"{maximum:.2f}" if maximum is not None else "-"
+    )
 
 with col3:
-    st.metric("최저 농도", minimum if minimum is not None else "-")
+    st.metric(
+        "최저 농도",
+        f"{minimum:.2f}" if minimum is not None else "-"
+    )
 
 with col4:
     st.metric("변화 추세", trend if trend is not None else "-")
