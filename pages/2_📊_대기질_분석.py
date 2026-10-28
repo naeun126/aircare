@@ -94,6 +94,91 @@ else:
 # ========================================
 
 
+column_map = {
+    "PM10": "pm10Value",
+    "PM2.5": "pm25Value",
+    "오존(O₃)": "o3Value",
+    "이산화질소(NO₂)": "no2Value",
+    "일산화탄소(CO)": "coValue",
+    "아황산가스(SO₂)": "so2Value",
+}
+
+selected_name = st.selectbox(
+    "분석할 대기오염물질을 선택하세요.",
+    list(column_map.keys()),
+)
+
+column = column_map[selected_name]
+
+average = calculate_average(data, column)
+maximum = calculate_max(data, column)
+minimum = calculate_min(data, column)
+trend = calculate_trend(data, column)
+
+st.subheader(f"📈 {selected_name} 분석")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("평균 농도", average if average is not None else "-")
+
+with col2:
+    st.metric("최고 농도", maximum if maximum is not None else "-")
+
+with col3:
+    st.metric("최저 농도", minimum if minimum is not None else "-")
+
+with col4:
+    st.metric("변화 추세", trend if trend is not None else "-")
+
+# 측정소별 농도 데이터
+station_values = []
+
+for record in data:
+    station = record.get("stationName", "알 수 없는 측정소")
+    raw_value = record.get(column)
+
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        continue
+
+    if value < 0:
+        continue
+
+    station_values.append({
+        "측정소": station,
+        "농도": value,
+    })
+
+station_df = pd.DataFrame(station_values)
+
+if not station_df.empty:
+    st.subheader(f"📊 측정소별 {selected_name} 농도")
+    st.bar_chart(station_df.set_index("측정소")["농도"])
+else:
+    st.warning("표시할 측정소별 농도 데이터가 없습니다.")
+
+# 지도에 표시할 측정소 좌표
+station_coordinates = get_station_coordinates()
+map_points = []
+
+if selected_name == "PM10":
+    limits = (30, 80, 150)
+elif selected_name == "PM2.5":
+    limits = (15, 35, 75)
+else:
+    limits = (0.03, 0.09, 0.15)
+
+map_pollutant = selected_name
+
+for _, row in station_df.iterrows():
+    station = row["측정소"]
+    value = row["농도"]
+
+    if station not in station_coordinates:
+        continue
+
     if not pd.notna(value) or value < 0:
         continue
 
