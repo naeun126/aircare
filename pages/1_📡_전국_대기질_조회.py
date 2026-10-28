@@ -171,16 +171,19 @@ if data:
 
     st.write("선택한 지역:", repr(sido_name))
 
-    station_names = []
+   station_names = []
 
-    for record in data:
-        station_name = record.get(
-            "stationName",
-            "알 수 없는 측정소"
-        )
+for record in data:
+    station_name = record.get(
+        "stationName",
+        "알 수 없는 측정소"
+    )
 
-        if station_name not in station_names:
-            station_names.append(station_name)
+    if station_name not in station_names:
+        station_names.append(station_name)
+
+# 측정소 목록을 가나다순으로 정렬
+station_names = sorted(station_names)
 
     selected_station = st.selectbox(
         "측정소를 선택하세요.",
