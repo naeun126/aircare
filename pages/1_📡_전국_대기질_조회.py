@@ -171,8 +171,6 @@ if data:
 
     st.write("선택한 지역:", repr(sido_name))
 
-    st.write("선택한 지역:", repr(sido_name))
-
     station_names = []
 
     for record in data:
