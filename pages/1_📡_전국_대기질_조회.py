@@ -70,7 +70,8 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
             record["_selectedSido"] = sido_name
 
         st.session_state.air_data = data
-
+        st.session_state.air_data_sido = sido_name
+        
         # 센서별 기록 저장
         for record in data:
             station_name = record.get(
