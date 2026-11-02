@@ -327,25 +327,45 @@ st.subheader(
     f"📋 {tomorrow:%Y년 %m월 %d일} 대기질 예보"
 )
 
-cols = st.columns(2)
+# 물질별 예보 자료 준비
+valid_forecasts = {}
 
-for col, (selected_name, inform_code) in zip(
-    cols,
-    pollutant_options.items()
-):
+for selected_name, inform_code in pollutant_options.items():
 
     data = forecast_data[selected_name]
+
     forecast_items = data["items"]
+
+    if (
+        forecast_items
+        and data["date"] == search_date
+        and data["code"] == inform_code
+    ):
+
+        valid_forecasts[selected_name] = forecast_items
+
+
+# ========================================
+# 7-1. PM10 / PM2.5 선택 지역 예보
+# ========================================
+
+cols = st.columns(2)
+
+for col, selected_name in zip(
+    cols,
+    pollutant_options.keys()
+):
+
+    forecast_items = valid_forecasts.get(
+        selected_name,
+        []
+    )
 
     with col:
 
         st.markdown(f"## {selected_name}")
 
-        if (
-            forecast_items
-            and data["date"] == search_date
-            and data["code"] == inform_code
-        ):
+        if forecast_items:
 
             for item in forecast_items:
 
@@ -358,10 +378,6 @@ for col, (selected_name, inform_code) in zip(
                 normalized_selected = normalize_region(
                     selected_sido
                 )
-
-                # ========================================
-                # 선택 지역 예보
-                # ========================================
 
                 selected_grades = list({
                     (normalize_region(region), grade): (region, grade)
@@ -414,78 +430,11 @@ for col, (selected_name, inform_code) in zip(
                 else:
 
                     st.warning(
-                        f"선택한 지역인 '{selected_sido}'의 등급을 "
-                        "예보 자료에서 찾지 못했습니다."
+                        f"선택한 지역인 '{selected_sido}'의 "
+                        f"{selected_name} 등급을 찾지 못했습니다."
                     )
 
-                # ========================================
-                # 다른 지역 예보
-                # ========================================
-
-                st.markdown("### 🗺️ 다른 지역 예보")
-
-                other_grades = list({
-                    (normalize_region(region), grade): (region, grade)
-                    for region, grade in grades
-                    if normalize_region(region) != normalized_selected
-                }.values())
-
-                if other_grades:
-
-                    # 지역 이름 가나다순 정렬
-                    other_grades.sort(
-                        key=lambda item: item[0]
-                    )
-
-                    # 두 개씩 나누어 화면에 표시
-                    for i in range(0, len(other_grades), 2):
-
-                        other_cols = st.columns(2)
-
-                        for other_col, (region, grade) in zip(
-                            other_cols,
-                            other_grades[i:i + 2]
-                        ):
-
-                            color = grade_color(grade)
-
-                            with other_col:
-
-                                other_card = (
-                                    f'<div style="'
-                                    f'background:{color}15; '
-                                    f'border-left:5px solid {color}; '
-                                    f'border-radius:10px; '
-                                    f'padding:15px; '
-                                    f'margin:5px 0;">'
-
-                                    f'<b>{region}</b>'
-
-                                    f'<div style="'
-                                    f'color:{color}; '
-                                    f'font-size:22px; '
-                                    f'font-weight:bold;">'
-                                    f'{grade}'
-                                    f'</div>'
-
-                                    f'</div>'
-                                )
-
-                                st.markdown(
-                                    other_card,
-                                    unsafe_allow_html=True
-                                )
-
-                else:
-
-                    st.info(
-                        "표시할 다른 지역 예보가 없습니다."
-                    )
-
-                # ========================================
                 # 예보 종합 정보
-                # ========================================
-
                 st.divider()
 
                 st.markdown("### 📢 예보 종합 정보")
@@ -513,5 +462,118 @@ for col, (selected_name, inform_code) in zip(
 
             st.warning(
                 f"{tomorrow:%Y년 %m월 %d일}의 "
-                f"{selected_name} 예보를 현재 조회한 자료에서 찾지 못했습니다."
+                f"{selected_name} 예보를 찾지 못했습니다."
             )
+
+
+# ========================================
+# 7-2. 다른 지역 예보 (한 번만 출력)
+# ========================================
+
+st.divider()
+
+st.markdown("### 🗺️ 다른 지역 예보")
+
+normalized_selected = normalize_region(selected_sido)
+
+# 지역별 PM10 / PM2.5 예보 통합
+other_region_data = {}
+
+for selected_name in pollutant_options.keys():
+
+    forecast_items = valid_forecasts.get(
+        selected_name,
+        []
+    )
+
+    for item in forecast_items:
+
+        grades = parse_grades(item["grades"])
+
+        for region, grade in grades:
+
+            normalized_region = normalize_region(region)
+
+            # 선택 지역 제외
+            if normalized_region == normalized_selected:
+                continue
+
+            if normalized_region not in other_region_data:
+
+                other_region_data[normalized_region] = {
+                    "region": region,
+                    "PM10": [],
+                    "PM2.5": [],
+                }
+
+            if grade not in other_region_data[normalized_region][selected_name]:
+
+                other_region_data[normalized_region][selected_name].append(
+                    grade
+                )
+
+
+if other_region_data:
+
+    # 지역 이름 가나다순 정렬
+    sorted_regions = sorted(
+        other_region_data.values(),
+        key=lambda item: item["region"]
+    )
+
+    # 두 개씩 나누어 화면에 표시
+    for i in range(0, len(sorted_regions), 2):
+
+        other_cols = st.columns(2)
+
+        for col, region_data in zip(
+            other_cols,
+            sorted_regions[i:i + 2]
+        ):
+
+            with col:
+
+                st.markdown(
+                    f"**{region_data['region']}**"
+                )
+
+                for pollutant in ("PM10", "PM2.5"):
+
+                    grades = region_data[pollutant]
+
+                    if grades:
+
+                        for grade in grades:
+
+                            color = grade_color(grade)
+
+                            st.markdown(
+                                f'<div style="'
+                                f'background:{color}15; '
+                                f'border-left:5px solid {color}; '
+                                f'border-radius:10px; '
+                                f'padding:12px; '
+                                f'margin:5px 0;">'
+
+                                f'<div style="'
+                                f'font-size:13px; '
+                                f'color:#64748b;">'
+                                f'{pollutant}'
+                                f'</div>'
+
+                                f'<div style="'
+                                f'color:{color}; '
+                                f'font-size:20px; '
+                                f'font-weight:bold;">'
+                                f'{grade}'
+                                f'</div>'
+
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
+
+else:
+
+    st.info(
+        "표시할 다른 지역 예보가 없습니다."
+    )
