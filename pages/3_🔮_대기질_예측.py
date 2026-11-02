@@ -24,6 +24,15 @@ def normalize_region(region):
 
     return aliases.get(region, region)
 
+from datetime import date, timedelta
+
+# 오늘 날짜와 내일 날짜 설정
+today = date.today()
+tomorrow = today + timedelta(days=1)
+
+# API 조회 날짜와 예보 대상 날짜
+search_date = today.isoformat()
+target_date = tomorrow.isoformat()
 
 query_key = f"{search_date}_{inform_code}"
 
