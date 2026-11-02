@@ -15,14 +15,13 @@ st.write(
     "에어코리아의 공식 대기질 예보를 조회합니다."
 )
 
-# 1페이지에서 선택한 지역 가져오기
+# 1페이지에서 실제 조회한 지역 가져오기
 selected_sido = st.session_state.get(
-    "selected_sido",
-    "서울"
+    "air_data_sido",
+    st.session_state.get("selected_sido", "서울")
 )
 
 st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
-
 
 # ========================================
 # 2. 예보 대기오염물질 선택
