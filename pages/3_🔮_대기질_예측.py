@@ -24,7 +24,9 @@ def normalize_region(region):
 
     return aliases.get(region, region)
 
+
 query_key = f"{search_date}_{inform_code}"
+
 if st.session_state.get("official_forecast_query_key") != query_key:
     for key in (
         "official_forecast_items",
@@ -86,6 +88,7 @@ if st.session_state.get("official_forecast_query_key") != query_key:
             item for item in merged.values()
             if date_key(item["date"]) == target_date
         ]
+
         result_items.sort(key=lambda item: item["date"])
 
         st.session_state["official_forecast_items"] = result_items
@@ -97,8 +100,10 @@ if st.session_state.get("official_forecast_query_key") != query_key:
         st.error(
             "Streamlit Secrets에 service_key가 설정되어 있는지 확인하세요."
         )
+
     except (ValueError, ConnectionError) as error:
         st.error(f"예보 조회에 실패했습니다: {error}")
+
     except Exception as error:
         st.error(f"예상하지 못한 오류가 발생했습니다: {error}")
 
@@ -172,6 +177,7 @@ if (
                         """,
                         unsafe_allow_html=True,
                     )
+
             else:
                 st.warning(
                     f"선택한 지역인 '{selected_sido}'의 등급을 "
@@ -189,7 +195,8 @@ if (
                 (region, grade)
                 for region, grade in grades
                 if normalize_region(region) != normalized_selected
-                
+            ]
+
             if other_grades:
                 # 지역 이름 가나다순 정렬
                 other_grades.sort(key=lambda item: item[0])
@@ -226,6 +233,7 @@ if (
                                 """,
                                 unsafe_allow_html=True,
                             )
+
             else:
                 st.info("표시할 다른 지역 예보가 없습니다.")
 
@@ -243,11 +251,13 @@ if (
 
             if item["cause"]:
                 st.markdown("**주요 발생 원인**")
+
                 for text in item["cause"]:
                     st.write(text)
 
             if item["action"]:
                 st.markdown("**대응 요령**")
+
                 for text in item["action"]:
                     st.write(text)
 
