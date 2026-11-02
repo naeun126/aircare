@@ -189,3 +189,71 @@ if (
                 (region, grade)
                 for region, grade in grades
                 if normalize_region(region) != normalized_selected
+                
+            if other_grades:
+                # 지역 이름 가나다순 정렬
+                other_grades.sort(key=lambda item: item[0])
+
+                # 두 개씩 나누어 화면에 표시
+                for i in range(0, len(other_grades), 2):
+                    cols = st.columns(2)
+
+                    for col, (region, grade) in zip(
+                        cols,
+                        other_grades[i:i + 2]
+                    ):
+                        color = grade_color(grade)
+
+                        with col:
+                            st.markdown(
+                                f"""
+                                <div style="
+                                    background:{color}15;
+                                    border-left:5px solid {color};
+                                    border-radius:10px;
+                                    padding:15px;
+                                    margin:5px 0;
+                                ">
+                                    <b>{region}</b>
+                                    <div style="
+                                        color:{color};
+                                        font-size:22px;
+                                        font-weight:bold;
+                                    ">
+                                        {grade}
+                                    </div>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+            else:
+                st.info("표시할 다른 지역 예보가 없습니다.")
+
+            # ========================================
+            # 예보 종합 정보
+            # ========================================
+
+            st.divider()
+
+            st.markdown("### 📢 예보 종합 정보")
+
+            if item["overall"]:
+                for text in item["overall"]:
+                    st.write(text)
+
+            if item["cause"]:
+                st.markdown("**주요 발생 원인**")
+                for text in item["cause"]:
+                    st.write(text)
+
+            if item["action"]:
+                st.markdown("**대응 요령**")
+                for text in item["action"]:
+                    st.write(text)
+
+else:
+    st.warning(
+        f"{tomorrow:%Y년 %m월 %d일}의 {selected_name} 예보를 "
+        "현재 조회한 자료에서 찾지 못했습니다. "
+        "예보 발표 여부를 확인해 주세요."
+    )
