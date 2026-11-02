@@ -95,9 +95,10 @@ def date_key(value):
 
 
 def parse_grades(grade_list):
-    """지역별 예보 문자열을 지역과 등급으로 분리한다."""
+    """지역별 예보 문자열을 지역과 등급으로 분리하고 중복을 제거한다."""
 
     results = []
+    seen = set()
 
     for text in grade_list:
         if not text:
@@ -121,7 +122,13 @@ def parse_grades(grade_list):
             region = region.strip()
             grade = grade.strip()
 
-            if region and grade:
+            if not region or not grade:
+                continue
+
+            key = (normalize_region(region), grade)
+
+            if key not in seen:
+                seen.add(key)
                 results.append((region, grade))
 
     return results
@@ -212,9 +219,14 @@ if st.session_state.get("official_forecast_query_key") != query_key:
                 "날짜 정보 없음",
             )
 
-            if forecast_date not in merged:
+            # 날짜 형식이 달라도 같은 날짜라면 하나로 통합
+            normalized_date = date_key(forecast_date)
 
-                merged[forecast_date] = {
+            merge_key = normalized_date or forecast_date
+
+            if merge_key not in merged:
+
+                merged[merge_key] = {
                     "date": forecast_date,
                     "time": item.get("dataTime"),
                     "grades": [],
@@ -223,7 +235,7 @@ if st.session_state.get("official_forecast_query_key") != query_key:
                     "action": [],
                 }
 
-            row = merged[forecast_date]
+            row = merged[merge_key]
 
             for field, target in [
                 ("informGrade", "grades"),
@@ -327,11 +339,12 @@ if (
                 selected_sido
             )
 
-            selected_grades = [
-                (region, grade)
+            # 선택 지역 예보 중복 제거
+            selected_grades = list({
+                (normalize_region(region), grade): (region, grade)
                 for region, grade in grades
                 if normalize_region(region) == normalized_selected
-            ]
+            }.values())
 
             st.caption(
                 f"발표 시각: {clean_text(item['time'])}"
@@ -398,11 +411,12 @@ if (
 
             st.markdown("### 🗺️ 다른 지역 예보")
 
-            other_grades = [
-                (region, grade)
+            # 다른 지역 예보 중복 제거
+            other_grades = list({
+                (normalize_region(region), grade): (region, grade)
                 for region, grade in grades
                 if normalize_region(region) != normalized_selected
-            ]
+            }.values())
 
             if other_grades:
 
