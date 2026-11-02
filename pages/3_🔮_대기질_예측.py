@@ -1,7 +1,7 @@
 def normalize_region(region):
     """예보 지역명과 선택한 시도를 비교하기 쉽게 정리한다."""
     region = str(region).strip()
- 
+
     aliases = {
         "충청북도": "충북",
         "충청남도": "충남",
@@ -23,7 +23,6 @@ def normalize_region(region):
     }
 
     return aliases.get(region, region)
-
 
 query_key = f"{search_date}_{inform_code}"
 if st.session_state.get("official_forecast_query_key") != query_key:
