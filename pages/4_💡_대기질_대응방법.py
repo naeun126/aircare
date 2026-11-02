@@ -1,6 +1,83 @@
 import streamlit as st
 
 
+# -------------------------
+# 대기질 등급 기준
+# -------------------------
+
+GRADE_LEVELS = ["좋음", "보통", "나쁨", "매우나쁨"]
+
+GRADE_COLORS = {
+    "좋음": "#2E9D50",
+    "보통": "#E5B900",
+    "나쁨": "#E87524",
+    "매우나쁨": "#D93636",
+}
+
+# 좋음 / 보통 / 나쁨의 상한값이며, 이를 넘으면 매우나쁨
+GRADE_LIMITS = {
+    "PM10": (30, 80, 150),
+    "PM2.5": (15, 35, 75),
+    "오존(O₃)": (0.030, 0.090, 0.150),
+}
+
+# 나쁨 이상일 때 안내할 대응 방법
+POLLUTANT_TIPS = {
+    "PM10": [
+        "외부 대기질을 확인하세요.",
+        "장시간 야외활동을 줄이는 것을 고려하세요.",
+        "환기 시간을 조절하세요.",
+    ],
+    "PM2.5": [
+        "실외 대기질을 확인하세요.",
+        "장시간 야외활동을 줄이는 것을 고려하세요.",
+        "외부 공기 상태를 확인하여 환기 시간을 조절하세요.",
+    ],
+    "오존(O₃)": [
+        "오존 등급이 나쁜 시간대를 확인하세요.",
+        "장시간 야외활동을 줄이는 것을 고려하세요.",
+    ],
+}
+
+
+def get_grade(name, value):
+    """측정값을 좋음 / 보통 / 나쁨 / 매우나쁨 등급으로 바꾼다."""
+
+    try:
+        number = float(value)
+    except (ValueError, TypeError):
+        return None
+
+    for level, limit in zip(GRADE_LEVELS, GRADE_LIMITS[name]):
+
+        if number <= limit:
+            return level
+
+    return GRADE_LEVELS[-1]
+
+
+def show_grade(grade):
+    """등급을 색상과 함께 표시한다."""
+
+    if grade is None:
+        st.caption("등급 정보 없음")
+        return
+
+    color = GRADE_COLORS[grade]
+
+    st.markdown(
+        f'<span style="'
+        f'background:{color}22; '
+        f'color:{color}; '
+        f'border-radius:8px; '
+        f'padding:3px 12px; '
+        f'font-weight:700;">'
+        f'{grade}'
+        f'</span>',
+        unsafe_allow_html=True
+    )
+
+
 st.title("💡 대기질 대응 방법")
 
 st.write(
@@ -77,77 +154,109 @@ else:
         o3 = selected_record.get("o3Value")
 
 
+        measures = {
+            "PM10": pm10,
+            "PM2.5": pm25,
+            "오존(O₃)": o3,
+        }
+
+        grades = {
+            name: get_grade(name, value)
+            for name, value in measures.items()
+        }
+
+
         st.write("### 현재 측정값")
 
-        col1, col2, col3 = st.columns(3)
+        cols = st.columns(3)
 
-        with col1:
-            st.metric("PM10", pm10 if pm10 else "-")
+        for col, (name, value) in zip(cols, measures.items()):
 
-        with col2:
-            st.metric("PM2.5", pm25 if pm25 else "-")
-
-        with col3:
-            st.metric("오존(O₃)", o3 if o3 else "-")
+            with col:
+                st.metric(name, value if value else "-")
+                show_grade(grades[name])
 
 
         st.write("### 💡 대응 방법")
 
+        known_grades = {
+            name: grade
+            for name, grade in grades.items()
+            if grade is not None
+        }
 
-        try:
+        if not known_grades:
 
-            if float(pm10) > 80:
+            st.info(
+                "측정값이 없어 현재 상태를 판단하기 어렵습니다."
+            )
 
-                st.warning(
+        else:
+
+            # 가장 나쁜 등급을 기준으로 안내
+            worst = max(
+                known_grades.values(),
+                key=GRADE_LEVELS.index
+            )
+
+            if worst == "좋음":
+
+                st.success(
                     """
-                    🌫️ PM10 농도가 높은 상태입니다.
+                    🌱 현재 대기질은 **좋음** 상태입니다.
 
-                    • 외부 대기질을 확인하세요.
-                    • 장시간 야외활동을 줄이는 것을 고려하세요.
-                    • 환기 시간을 조절하세요.
+                    - 현재 대기질 상태를 지속적으로 확인하세요.
+                    - 적절한 시간에 환기하세요.
                     """
                 )
 
-            elif float(pm25) > 35:
+            elif worst == "보통":
 
-                st.warning(
+                st.info(
                     """
-                    🌫️ PM2.5 농도가 높은 상태입니다.
+                    🙂 현재 대기질은 **보통** 상태입니다.
 
-                    • 실외 대기질을 확인하세요.
-                    • 장시간 야외활동을 줄이는 것을 고려하세요.
-                    • 외부 공기 상태를 확인하여 환기 시간을 조절하세요.
-                    """
-                )
-
-            elif float(o3) > 0.09:
-
-                st.warning(
-                    """
-                    ☀️ 오존 농도가 높은 상태입니다.
-
-                    • 오존 농도가 높은 시간대를 확인하세요.
-                    • 장시간 야외활동을 줄이는 것을 고려하세요.
+                    - 대기질 변화를 확인하세요.
+                    - 민감한 경우 장시간 야외활동 시 주의하세요.
+                    - 적절한 시간에 환기하세요.
                     """
                 )
 
             else:
 
-                st.success(
-                    """
-                    🌱 현재 주요 대기오염물질의 농도가
-                    비교적 낮은 상태입니다.
+                # 나쁨 이상인 오염물질 정리
+                bad_items = [
+                    (name, grade)
+                    for name, grade in known_grades.items()
+                    if GRADE_LEVELS.index(grade) >= 2
+                ]
 
-                    • 현재 대기질 상태를 지속적으로 확인하세요.
-                    • 적절한 시간에 환기하세요.
-                    """
+                summary = ", ".join(
+                    f"{name} **{grade}**"
+                    for name, grade in bad_items
                 )
 
-        except (ValueError, TypeError):
+                tips = []
 
-            st.info(
-                "일부 측정값이 없어 현재 상태를 정확하게 판단하기 어렵습니다."
-            )
+                if worst == "매우나쁨":
+                    tips.append("불필요한 야외활동은 가급적 자제하세요.")
+
+                for name, _ in bad_items:
+
+                    for tip in POLLUTANT_TIPS[name]:
+
+                        if tip not in tips:
+                            tips.append(tip)
+
+                message = (
+                    f"🌫️ 현재 {summary} 상태입니다.\n\n"
+                    + "\n".join(f"- {tip}" for tip in tips)
+                )
+
+                if worst == "매우나쁨":
+                    st.error(message)
+                else:
+                    st.warning(message)
 
 
 st.divider()
