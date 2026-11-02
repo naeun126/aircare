@@ -1,3 +1,66 @@
+import re
+import streamlit as st
+
+from datetime import date, timedelta
+from utils.api import get_air_quality_forecast
+
+
+# ========================================
+# 1. 페이지 기본 설정
+# ========================================
+
+st.title("🔮 대기질 예측")
+
+st.write(
+    "에어코리아의 공식 대기질 예보를 조회합니다."
+)
+
+# 1페이지에서 선택한 지역 가져오기
+selected_sido = st.session_state.get(
+    "selected_sido",
+    "서울"
+)
+
+st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
+
+
+# ========================================
+# 2. 예보 대기오염물질 선택
+# ========================================
+
+pollutant_options = {
+    "PM10": "PM10",
+    "PM2.5": "PM25",
+}
+
+selected_name = st.selectbox(
+    "예보할 대기오염물질을 선택하세요.",
+    list(pollutant_options.keys()),
+)
+
+inform_code = pollutant_options[selected_name]
+
+
+# ========================================
+# 3. 날짜 설정
+# ========================================
+
+today = date.today()
+tomorrow = today + timedelta(days=1)
+
+search_date = today.isoformat()
+target_date = tomorrow.isoformat()
+
+
+# ========================================
+# 4. 데이터 정리 함수
+# ========================================
+
+def clean_text(value, default="정보 없음"):
+    if value is None or str(value).strip() in ("", "None"):
+        return default
+
+    return str(value).strip()
 
 
 def date_key(value):
@@ -190,3 +253,243 @@ if st.session_state.get("official_forecast_query_key") != query_key:
         ]
 
         result_items.sort(
+            key=lambda item: item["date"]
+        )
+
+        st.session_state["official_forecast_items"] = result_items
+        st.session_state["official_forecast_date"] = search_date
+        st.session_state["official_forecast_code"] = inform_code
+        st.session_state["official_forecast_query_key"] = query_key
+
+    except KeyError:
+
+        st.error(
+            "Streamlit Secrets에 service_key가 설정되어 있는지 확인하세요."
+        )
+
+    except (ValueError, ConnectionError) as error:
+
+        st.error(
+            f"예보 조회에 실패했습니다: {error}"
+        )
+
+    except Exception as error:
+
+        st.error(
+            f"예상하지 못한 오류가 발생했습니다: {error}"
+        )
+
+
+# ========================================
+# 6. 예보 결과 가져오기
+# ========================================
+
+forecast_items = st.session_state.get(
+    "official_forecast_items",
+    []
+)
+
+saved_date = st.session_state.get(
+    "official_forecast_date"
+)
+
+saved_code = st.session_state.get(
+    "official_forecast_code"
+)
+
+
+# ========================================
+# 7. 예보 결과 화면 출력
+# ========================================
+
+if (
+    forecast_items
+    and saved_date == search_date
+    and saved_code == inform_code
+):
+
+    st.divider()
+
+    st.subheader(
+        f"📋 {tomorrow:%Y년 %m월 %d일} {selected_name} 예보"
+    )
+
+    tabs = st.tabs(
+        [item["date"] for item in forecast_items]
+    )
+
+    for tab, item in zip(tabs, forecast_items):
+
+        with tab:
+
+            grades = parse_grades(item["grades"])
+
+            normalized_selected = normalize_region(
+                selected_sido
+            )
+
+            selected_grades = [
+                (region, grade)
+                for region, grade in grades
+                if normalize_region(region) == normalized_selected
+            ]
+
+            st.caption(
+                f"발표 시각: {clean_text(item['time'])}"
+            )
+
+            # ========================================
+            # 선택 지역 예보
+            # ========================================
+
+            st.markdown("### 📍 선택 지역 예보")
+
+            if selected_grades:
+
+                for region, grade in selected_grades:
+
+                    color = grade_color(grade)
+
+                    # HTML 카드 출력
+                    forecast_card = (
+                        f'<div style="'
+                        f'background:{color}15; '
+                        f'border-left:7px solid {color}; '
+                        f'border-radius:12px; '
+                        f'padding:22px; '
+                        f'margin:8px 0 20px 0;">'
+
+                        f'<div style="'
+                        f'font-size:15px; '
+                        f'color:#64748b;">'
+                        f'{region} · {selected_name}'
+                        f'</div>'
+
+                        f'<div style="'
+                        f'font-size:32px; '
+                        f'font-weight:700; '
+                        f'color:{color}; '
+                        f'margin:8px 0;">'
+                        f'{grade}'
+                        f'</div>'
+
+                        f'<div style="font-size:14px;">'
+                        f'에어코리아 공식 권역별 예보'
+                        f'</div>'
+
+                        f'</div>'
+                    )
+
+                    st.markdown(
+                        forecast_card,
+                        unsafe_allow_html=True
+                    )
+
+            else:
+
+                st.warning(
+                    f"선택한 지역인 '{selected_sido}'의 등급을 "
+                    "예보 자료에서 찾지 못했습니다. "
+                    "아래 지역별 예보를 확인해 주세요."
+                )
+
+            # ========================================
+            # 다른 지역 예보
+            # ========================================
+
+            st.markdown("### 🗺️ 다른 지역 예보")
+
+            other_grades = [
+                (region, grade)
+                for region, grade in grades
+                if normalize_region(region) != normalized_selected
+            ]
+
+            if other_grades:
+
+                # 지역 이름 가나다순 정렬
+                other_grades.sort(
+                    key=lambda item: item[0]
+                )
+
+                # 두 개씩 나누어 화면에 표시
+                for i in range(0, len(other_grades), 2):
+
+                    cols = st.columns(2)
+
+                    for col, (region, grade) in zip(
+                        cols,
+                        other_grades[i:i + 2]
+                    ):
+
+                        color = grade_color(grade)
+
+                        with col:
+
+                            # 다른 지역 HTML 카드 출력
+                            other_card = (
+                                f'<div style="'
+                                f'background:{color}15; '
+                                f'border-left:5px solid {color}; '
+                                f'border-radius:10px; '
+                                f'padding:15px; '
+                                f'margin:5px 0;">'
+
+                                f'<b>{region}</b>'
+
+                                f'<div style="'
+                                f'color:{color}; '
+                                f'font-size:22px; '
+                                f'font-weight:bold;">'
+                                f'{grade}'
+                                f'</div>'
+
+                                f'</div>'
+                            )
+
+                            st.markdown(
+                                other_card,
+                                unsafe_allow_html=True
+                            )
+
+            else:
+
+                st.info(
+                    "표시할 다른 지역 예보가 없습니다."
+                )
+
+            # ========================================
+            # 예보 종합 정보
+            # ========================================
+
+            st.divider()
+
+            st.markdown("### 📢 예보 종합 정보")
+
+            if item["overall"]:
+
+                for text in item["overall"]:
+                    st.write(text)
+
+            if item["cause"]:
+
+                st.markdown("**주요 발생 원인**")
+
+                for text in item["cause"]:
+                    st.write(text)
+
+            if item["action"]:
+
+                st.markdown("**대응 요령**")
+
+                for text in item["action"]:
+                    st.write(text)
+
+
+else:
+
+    st.warning(
+        f"{tomorrow:%Y년 %m월 %d일}의 {selected_name} 예보를 "
+        "현재 조회한 자료에서 찾지 못했습니다. "
+        "예보 발표 여부를 확인해 주세요."
+    )
