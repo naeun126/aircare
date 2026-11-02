@@ -88,6 +88,34 @@ def date_key(value):
     return ""
 
 
+def normalize_region(region):
+    """예보 지역명과 선택한 시도명을 비교하기 쉽게 정리한다."""
+
+    region = str(region).strip()
+
+    aliases = {
+        "충청북도": "충북",
+        "충청남도": "충남",
+        "전라북도": "전북",
+        "전라남도": "전남",
+        "경상북도": "경북",
+        "경상남도": "경남",
+        "강원특별자치도": "강원",
+        "제주특별자치도": "제주",
+        "경기도": "경기",
+        "서울특별시": "서울",
+        "부산광역시": "부산",
+        "대구광역시": "대구",
+        "인천광역시": "인천",
+        "광주광역시": "광주",
+        "대전광역시": "대전",
+        "울산광역시": "울산",
+        "세종특별자치시": "세종",
+    }
+
+    return aliases.get(region, region)
+
+
 def parse_grades(grade_list):
     """지역별 예보 문자열을 지역과 등급으로 분리하고 중복을 제거한다."""
 
@@ -148,32 +176,64 @@ def grade_color(grade):
     return "#64748B"
 
 
-def normalize_region(region):
-    """예보 지역명과 선택한 시도명을 비교하기 쉽게 정리한다."""
+FORECAST_FIELDS = [
+    ("informGrade", "grades"),
+    ("informOverall", "overall"),
+    ("informCause", "cause"),
+    ("actionKnack", "action"),
+]
 
-    region = str(region).strip()
 
-    aliases = {
-        "충청북도": "충북",
-        "충청남도": "충남",
-        "전라북도": "전북",
-        "전라남도": "전남",
-        "경상북도": "경북",
-        "경상남도": "경남",
-        "강원특별자치도": "강원",
-        "제주특별자치도": "제주",
-        "경기도": "경기",
-        "서울특별시": "서울",
-        "부산광역시": "부산",
-        "대구광역시": "대구",
-        "인천광역시": "인천",
-        "광주광역시": "광주",
-        "대전광역시": "대전",
-        "울산광역시": "울산",
-        "세종특별자치시": "세종",
+def build_forecast_row(forecast_date, records):
+    """같은 예보 날짜의 발표 자료 중 가장 최근 발표를 기준으로 정리한다."""
+
+    # 발표 시각이 가장 늦은 자료가 앞에 오도록 정렬
+    records = sorted(
+        records,
+        key=lambda record: clean_text(record.get("dataTime"), ""),
+        reverse=True,
+    )
+
+    row = {
+        "date": forecast_date,
+        "time": records[0].get("dataTime"),
+        "grades": [],
+        "overall": [],
+        "cause": [],
+        "action": [],
     }
 
-    return aliases.get(region, region)
+    for field, target in FORECAST_FIELDS:
+
+        # 가장 최근 발표부터 확인해 값이 있는 첫 자료만 사용
+        for record in records:
+
+            value = record.get(field)
+
+            if value and str(value).strip() not in ("", "None"):
+                row[target].append(str(value).strip())
+                break
+
+    return row
+
+
+def collect_unique_texts(rows, field):
+    """여러 물질의 예보 문구를 모아 같은 내용은 한 번만 남긴다."""
+
+    texts = []
+    seen = set()
+
+    for row in rows:
+
+        for text in row[field]:
+
+            key = " ".join(text.split())
+
+            if key not in seen:
+                seen.add(key)
+                texts.append(text)
+
+    return texts
 
 
 # ========================================
@@ -213,8 +273,8 @@ for selected_name, inform_code in pollutant_options.items():
                     search_date=search_date,
                 )
 
-            # 예보 대상 날짜별로 내용 통합
-            merged = {}
+            # 예보 대상 날짜별로 발표 자료 묶기
+            grouped = {}
 
             for item in items:
 
@@ -223,51 +283,23 @@ for selected_name, inform_code in pollutant_options.items():
                     "날짜 정보 없음",
                 )
 
-                normalized_date = date_key(forecast_date)
-                merge_key = normalized_date or forecast_date
+                merge_key = date_key(forecast_date) or forecast_date
 
-                if merge_key not in merged:
+                if merge_key not in grouped:
 
-                    merged[merge_key] = {
+                    grouped[merge_key] = {
                         "date": forecast_date,
-                        "time": item.get("dataTime"),
-                        "grades": [],
-                        "overall": [],
-                        "cause": [],
-                        "action": [],
+                        "records": [],
                     }
 
-                row = merged[merge_key]
-
-                for field, target in [
-                    ("informGrade", "grades"),
-                    ("informOverall", "overall"),
-                    ("informCause", "cause"),
-                    ("actionKnack", "action"),
-                ]:
-
-                    value = item.get(field)
-
-                    if value and str(value).strip() not in ("", "None"):
-
-                        text = str(value).strip()
-
-                        if text not in row[target]:
-                            row[target].append(text)
-
-                if item.get("dataTime"):
-                    row["time"] = item["dataTime"]
+                grouped[merge_key]["records"].append(item)
 
             # 내일 날짜에 해당하는 예보만 선택
             result_items = [
-                item
-                for item in merged.values()
-                if date_key(item["date"]) == target_date
+                build_forecast_row(group["date"], group["records"])
+                for group in grouped.values()
+                if date_key(group["date"]) == target_date
             ]
-
-            result_items.sort(
-                key=lambda item: item["date"]
-            )
 
             st.session_state[f"{session_prefix}_items"] = result_items
             st.session_state[f"{session_prefix}_date"] = search_date
@@ -297,24 +329,25 @@ for selected_name, inform_code in pollutant_options.items():
 # 6. 예보 결과 가져오기
 # ========================================
 
-forecast_data = {}
+valid_forecasts = {}
 
 for selected_name, inform_code in pollutant_options.items():
 
     session_prefix = f"official_forecast_{inform_code}"
 
-    forecast_data[selected_name] = {
-        "items": st.session_state.get(
-            f"{session_prefix}_items",
-            []
-        ),
-        "date": st.session_state.get(
-            f"{session_prefix}_date"
-        ),
-        "code": st.session_state.get(
-            f"{session_prefix}_code"
-        ),
-    }
+    forecast_items = st.session_state.get(
+        f"{session_prefix}_items",
+        []
+    )
+
+    if (
+        forecast_items
+        and st.session_state.get(f"{session_prefix}_date") == search_date
+        and st.session_state.get(f"{session_prefix}_code") == inform_code
+    ):
+
+        # 내일 예보는 날짜별로 하나만 남아 있으므로 첫 번째 사용
+        valid_forecasts[selected_name] = forecast_items[0]
 
 
 # ========================================
@@ -327,27 +360,36 @@ st.subheader(
     f"📋 {tomorrow:%Y년 %m월 %d일} 대기질 예보"
 )
 
-# 물질별 예보 자료 준비
-valid_forecasts = {}
+if not valid_forecasts:
 
-for selected_name, inform_code in pollutant_options.items():
+    st.warning(
+        f"{tomorrow:%Y년 %m월 %d일}의 예보를 찾지 못했습니다. "
+        "예보 발표 여부를 확인해 주세요."
+    )
 
-    data = forecast_data[selected_name]
+    st.stop()
 
-    forecast_items = data["items"]
+# 발표 시각은 한 번만 표시
+release_time = next(
+    (
+        clean_text(row["time"])
+        for row in valid_forecasts.values()
+        if row.get("time")
+    ),
+    None,
+)
 
-    if (
-        forecast_items
-        and data["date"] == search_date
-        and data["code"] == inform_code
-    ):
+if release_time:
+    st.caption(f"발표 시각: {release_time}")
 
-        valid_forecasts[selected_name] = forecast_items
+normalized_selected = normalize_region(selected_sido)
 
 
 # ========================================
-# 7-1. PM10 / PM2.5 선택 지역 예보
+# 7-1. 선택 지역 예보 (PM10 / PM2.5)
 # ========================================
+
+st.markdown("### 📍 선택 지역 예보")
 
 cols = st.columns(2)
 
@@ -356,169 +398,103 @@ for col, selected_name in zip(
     pollutant_options.keys()
 ):
 
-    forecast_items = valid_forecasts.get(
-        selected_name,
-        []
-    )
-
     with col:
 
-        st.markdown(f"## {selected_name}")
+        row = valid_forecasts.get(selected_name)
 
-        if forecast_items:
+        if row is None:
 
-            for item in forecast_items:
+            st.warning(
+                f"{selected_name} 예보를 찾지 못했습니다."
+            )
 
-                st.caption(
-                    f"발표 시각: {clean_text(item['time'])}"
-                )
+            continue
 
-                grades = parse_grades(item["grades"])
+        selected_grades = [
+            (region, grade)
+            for region, grade in parse_grades(row["grades"])
+            if normalize_region(region) == normalized_selected
+        ]
 
-                normalized_selected = normalize_region(
-                    selected_sido
-                )
+        if selected_grades:
 
-                selected_grades = list({
-                    (normalize_region(region), grade): (region, grade)
-                    for region, grade in grades
-                    if normalize_region(region) == normalized_selected
-                }.values())
+            region, grade = selected_grades[0]
 
-                st.markdown("### 📍 선택 지역 예보")
+            color = grade_color(grade)
 
-                if selected_grades:
+            forecast_card = (
+                f'<div style="'
+                f'background:{color}15; '
+                f'border-left:7px solid {color}; '
+                f'border-radius:12px; '
+                f'padding:22px; '
+                f'margin:8px 0 20px 0;">'
 
-                    for region, grade in selected_grades:
+                f'<div style="'
+                f'font-size:15px; '
+                f'color:#64748b;">'
+                f'{region} · {selected_name}'
+                f'</div>'
 
-                        color = grade_color(grade)
+                f'<div style="'
+                f'font-size:32px; '
+                f'font-weight:700; '
+                f'color:{color}; '
+                f'margin:8px 0;">'
+                f'{grade}'
+                f'</div>'
 
-                        forecast_card = (
-                            f'<div style="'
-                            f'background:{color}15; '
-                            f'border-left:7px solid {color}; '
-                            f'border-radius:12px; '
-                            f'padding:22px; '
-                            f'margin:8px 0 20px 0;">'
+                f'<div style="font-size:14px;">'
+                f'에어코리아 공식 권역별 예보'
+                f'</div>'
 
-                            f'<div style="'
-                            f'font-size:15px; '
-                            f'color:#64748b;">'
-                            f'{region} · {selected_name}'
-                            f'</div>'
+                f'</div>'
+            )
 
-                            f'<div style="'
-                            f'font-size:32px; '
-                            f'font-weight:700; '
-                            f'color:{color}; '
-                            f'margin:8px 0;">'
-                            f'{grade}'
-                            f'</div>'
-
-                            f'<div style="font-size:14px;">'
-                            f'에어코리아 공식 권역별 예보'
-                            f'</div>'
-
-                            f'</div>'
-                        )
-
-                        st.markdown(
-                            forecast_card,
-                            unsafe_allow_html=True
-                        )
-
-                else:
-
-                    st.warning(
-                        f"선택한 지역인 '{selected_sido}'의 "
-                        f"{selected_name} 등급을 찾지 못했습니다."
-                    )
-
-                # 예보 종합 정보
-                st.divider()
-
-                st.markdown("### 📢 예보 종합 정보")
-
-                if item["overall"]:
-
-                    for text in item["overall"]:
-                        st.write(text)
-
-                if item["cause"]:
-
-                    st.markdown("**주요 발생 원인**")
-
-                    for text in item["cause"]:
-                        st.write(text)
-
-                if item["action"]:
-
-                    st.markdown("**대응 요령**")
-
-                    for text in item["action"]:
-                        st.write(text)
+            st.markdown(
+                forecast_card,
+                unsafe_allow_html=True
+            )
 
         else:
 
             st.warning(
-                f"{tomorrow:%Y년 %m월 %d일}의 "
-                f"{selected_name} 예보를 찾지 못했습니다."
+                f"선택한 지역인 '{selected_sido}'의 "
+                f"{selected_name} 등급을 찾지 못했습니다."
             )
 
 
 # ========================================
-# 7-2. 다른 지역 예보 (한 번만 출력)
+# 7-2. 다른 지역 예보 (PM10만 표시)
 # ========================================
 
 st.divider()
 
-st.markdown("### 🗺️ 다른 지역 예보")
+st.markdown("### 🗺️ 다른 지역 예보 (PM10)")
 
-normalized_selected = normalize_region(selected_sido)
+other_regions = {}
 
-# 지역별 PM10 / PM2.5 예보 통합
-other_region_data = {}
+pm10_row = valid_forecasts.get("PM10")
 
-for selected_name in pollutant_options.keys():
+if pm10_row:
 
-    forecast_items = valid_forecasts.get(
-        selected_name,
-        []
-    )
+    for region, grade in parse_grades(pm10_row["grades"]):
 
-    for item in forecast_items:
+        normalized_region = normalize_region(region)
 
-        grades = parse_grades(item["grades"])
+        # 선택 지역 제외, 지역별로 한 번만 저장
+        if normalized_region == normalized_selected:
+            continue
 
-        for region, grade in grades:
+        if normalized_region not in other_regions:
+            other_regions[normalized_region] = (region, grade)
 
-            normalized_region = normalize_region(region)
-
-            # 선택 지역 제외
-            if normalized_region == normalized_selected:
-                continue
-
-            if normalized_region not in other_region_data:
-
-                other_region_data[normalized_region] = {
-                    "region": region,
-                    "PM10": [],
-                    "PM2.5": [],
-                }
-
-            if grade not in other_region_data[normalized_region][selected_name]:
-
-                other_region_data[normalized_region][selected_name].append(
-                    grade
-                )
-
-
-if other_region_data:
+if other_regions:
 
     # 지역 이름 가나다순 정렬
     sorted_regions = sorted(
-        other_region_data.values(),
-        key=lambda item: item["region"]
+        other_regions.values(),
+        key=lambda item: item[0]
     )
 
     # 두 개씩 나누어 화면에 표시
@@ -526,54 +502,73 @@ if other_region_data:
 
         other_cols = st.columns(2)
 
-        for col, region_data in zip(
+        for col, (region, grade) in zip(
             other_cols,
             sorted_regions[i:i + 2]
         ):
 
+            color = grade_color(grade)
+
             with col:
 
+                st.markdown(f"**{region}**")
+
+                # 칸에는 예보 상태만 표시
                 st.markdown(
-                    f"**{region_data['region']}**"
+                    f'<div style="'
+                    f'background:{color}15; '
+                    f'border-left:5px solid {color}; '
+                    f'border-radius:10px; '
+                    f'padding:12px; '
+                    f'margin:5px 0 18px 0; '
+                    f'color:{color}; '
+                    f'font-size:20px; '
+                    f'font-weight:bold;">'
+                    f'{grade}'
+                    f'</div>',
+                    unsafe_allow_html=True
                 )
-
-                for pollutant in ("PM10", "PM2.5"):
-
-                    grades = region_data[pollutant]
-
-                    if grades:
-
-                        for grade in grades:
-
-                            color = grade_color(grade)
-
-                            st.markdown(
-                                f'<div style="'
-                                f'background:{color}15; '
-                                f'border-left:5px solid {color}; '
-                                f'border-radius:10px; '
-                                f'padding:12px; '
-                                f'margin:5px 0;">'
-
-                                f'<div style="'
-                                f'font-size:13px; '
-                                f'color:#64748b;">'
-                                f'{pollutant}'
-                                f'</div>'
-
-                                f'<div style="'
-                                f'color:{color}; '
-                                f'font-size:20px; '
-                                f'font-weight:bold;">'
-                                f'{grade}'
-                                f'</div>'
-
-                                f'</div>',
-                                unsafe_allow_html=True
-                            )
 
 else:
 
     st.info(
         "표시할 다른 지역 예보가 없습니다."
     )
+
+
+# ========================================
+# 7-3. 예보 종합 정보 (한 번만 표시)
+# ========================================
+
+st.divider()
+
+st.markdown("### 📢 예보 종합 정보")
+
+all_rows = list(valid_forecasts.values())
+
+overall_texts = collect_unique_texts(all_rows, "overall")
+cause_texts = collect_unique_texts(all_rows, "cause")
+action_texts = collect_unique_texts(all_rows, "action")
+
+if overall_texts:
+
+    for text in overall_texts:
+        st.write(text)
+
+if cause_texts:
+
+    st.markdown("**주요 발생 원인**")
+
+    for text in cause_texts:
+        st.write(text)
+
+if action_texts:
+
+    st.markdown("**대응 요령**")
+
+    for text in action_texts:
+        st.write(text)
+
+if not (overall_texts or cause_texts or action_texts):
+
+    st.info("표시할 예보 종합 정보가 없습니다.")
