@@ -54,8 +54,6 @@ def get_air_quality_data(service_key, sido_name):
     except json.JSONDecodeError:
         raise ValueError(f"JSON이 아닌 응답을 받았습니다: {data[:200]}")
 
-    # 이하 기존 코드(response_data = result.get("response") ...)는 그대로 유지
-
     response_data = result.get("response")
 
     if response_data is None:
