@@ -1,7 +1,7 @@
 import streamlit as st
 
 from utils.api import get_air_quality_data
-
+from utils.grade import GRADE_COLORS, GRADE_LEVELS, GRADE_LIMITS, get_grade
 
 # 세션 상태 초기화
 if "air_data" not in st.session_state:
@@ -118,49 +118,30 @@ if st.button("🔄 최신 대기질 데이터 불러오기"):
 # 미세먼지 농도에 따른 색상 표시
 def show_pollutant_status(name, value, limits):
 
-    try:
-        value = float(value)
-    except (ValueError, TypeError):
-        st.info(f"{name}: 측정값 없음")
+    grade = get_grade(value, limits)
+
+    if grade is None:
+        st.info(f"{name}: 측정값 없음 또는 유효하지 않은 값")
         return
-
-    if value < 0:
-        st.info(f"{name}: 유효하지 않은 측정값")
-        return
-
-    if value <= limits[0]:
-        color = "#2E9D50"
-        status = "좋음"
-
-    elif value <= limits[1]:
-        color = "#E5B900"
-        status = "보통"
-
-    elif value <= limits[2]:
-        color = "#E87524"
-        status = "나쁨"
-
-    else:
-        color = "#D93636"
-        status = "매우 나쁨"
 
     st.markdown(
         f"""
         <div style="
-            background-color: {color};
+            background-color: {GRADE_COLORS[grade]};
             color: white;
             padding: 12px;
             border-radius: 10px;
             margin: 5px 0 12px 0;
         ">
             <b>{name}</b><br>
-            농도: {value:g}<br>
-            상태: {status}
+            농도: {float(value):g}<br>
+            상태: {grade}
         </div>
         """,
         unsafe_allow_html=True
     )
-    
+
+
 data = st.session_state.air_data
 
 if data:
@@ -168,8 +149,6 @@ if data:
     st.subheader(
         f"📍 {sido_name} 측정소 목록"
     )
-
-    st.write("선택한 지역:", repr(sido_name))
 
     station_names = []
 
@@ -204,38 +183,20 @@ if data:
         # 현재 대기질 요약
         st.subheader("🌏 현재 대기질 요약")
 
-        pm10 = selected_record.get("pm10Value")
-        pm25 = selected_record.get("pm25Value")
+        pm10 = selected_record.get("pm10Value")      
+        pm25 = selected_record.get("pm25Value")    
 
-        def get_pm_status(value, limits):
-            try:
-                value = float(value)
-            except (ValueError, TypeError):
-                return None
+        pm10_grade = get_grade(pm10, GRADE_LIMITS["PM10"])
+        pm25_grade = get_grade(pm25, GRADE_LIMITS["PM2.5"])
 
-            if value < 0:
-                return None
-            elif value <= limits[0]:
-                return (0, "좋음", "#2E9D50")
-            elif value <= limits[1]:
-                return (1, "보통", "#E5B900")
-            elif value <= limits[2]:
-                return (2, "나쁨", "#E87524")
-            else:
-                return (3, "매우 나쁨", "#D93636")
-
-        pm10_status = get_pm_status(pm10, (30, 80, 150))
-        pm25_status = get_pm_status(pm25, (15, 35, 75))
-
-        statuses = [
-            status for status in [pm10_status, pm25_status]
-            if status is not None
+        known_grades = [
+            g for g in (pm10_grade, pm25_grade) if g is not None
         ]
 
-        if statuses:
-            overall = max(statuses, key=lambda item: item[0])
-            grade = overall[1]
-            color = overall[2]
+        if known_grades:
+            # 두 물질 중 더 나쁜 등급을 기준으로 한다.
+            grade = max(known_grades, key=GRADE_LEVELS.index)
+            color = GRADE_COLORS[grade]
 
             if grade == "좋음":
                 message = "현재 미세먼지 농도가 낮은 상태입니다."
@@ -280,15 +241,14 @@ if data:
 
         with status_col1:
             show_pollutant_status(
-                "PM10", pm10, (30, 80, 150)
+                "PM10", pm10, GRADE_LIMITS["PM10"]
             )
 
         with status_col2:
             show_pollutant_status(
-                "PM2.5", pm25, (15, 35, 75)
+                "PM2.5", pm25, GRADE_LIMITS["PM2.5"]
             )
 
-        # 기존 측정값 표시 코드는 아래에 그대로 유지
         st.subheader(
             f"📊 {selected_station} 최신 측정값"
         )
