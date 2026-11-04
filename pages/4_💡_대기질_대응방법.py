@@ -1,25 +1,7 @@
 import streamlit as st
 
+from utils.grade import GRADE_COLORS, GRADE_LEVELS, GRADE_LIMITS, get_grade
 
-# -------------------------
-# 대기질 등급 기준
-# -------------------------
-
-GRADE_LEVELS = ["좋음", "보통", "나쁨", "매우나쁨"]
-
-GRADE_COLORS = {
-    "좋음": "#2E9D50",
-    "보통": "#E5B900",
-    "나쁨": "#E87524",
-    "매우나쁨": "#D93636",
-}
-
-# 좋음 / 보통 / 나쁨의 상한값이며, 이를 넘으면 매우나쁨
-GRADE_LIMITS = {
-    "PM10": (30, 80, 150),
-    "PM2.5": (15, 35, 75),
-    "오존(O₃)": (0.030, 0.090, 0.150),
-}
 
 # 나쁨 이상일 때 안내할 대응 방법
 POLLUTANT_TIPS = {
@@ -38,22 +20,6 @@ POLLUTANT_TIPS = {
         "장시간 야외활동을 줄이는 것을 고려하세요.",
     ],
 }
-
-
-def get_grade(name, value):
-    """측정값을 좋음 / 보통 / 나쁨 / 매우나쁨 등급으로 바꾼다."""
-
-    try:
-        number = float(value)
-    except (ValueError, TypeError):
-        return None
-
-    for level, limit in zip(GRADE_LEVELS, GRADE_LIMITS[name]):
-
-        if number <= limit:
-            return level
-
-    return GRADE_LEVELS[-1]
 
 
 def show_grade(grade):
@@ -161,7 +127,7 @@ else:
         }
 
         grades = {
-            name: get_grade(name, value)
+            name: get_grade(value, GRADE_LIMITS[name])
             for name, value in measures.items()
         }
 
@@ -238,7 +204,7 @@ else:
 
                 tips = []
 
-                if worst == "매우나쁨":
+                if worst == "매우 나쁨":
                     tips.append("불필요한 야외활동은 가급적 자제하세요.")
 
                 for name, _ in bad_items:
