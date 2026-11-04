@@ -9,7 +9,7 @@ from utils.api import get_air_quality_forecast
 # 1. 페이지 기본 설정
 # ========================================
 
-st.title("🔮 대기질 예측")
+st.title("🔮 대기질 예보")
 
 st.write(
     "에어코리아의 공식 대기질 예보를 조회합니다."
