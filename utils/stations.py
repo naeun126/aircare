@@ -16,7 +16,7 @@ def get_station_coordinates():
 
     if not COORDINATE_FILE.exists():
         raise RuntimeError(
-            f"측정소 좌표 파일을 찾을 수 없어: {COORDINATE_FILE}"
+            f"측정소 좌표 파일을 찾을 수 없습니: {COORDINATE_FILE}"
         )
 
     # 공공데이터 CSV가 CP949로 저장된 경우도 처리
@@ -29,7 +29,7 @@ def get_station_coordinates():
 
     if not required_columns.issubset(df.columns):
         raise RuntimeError(
-            "CSV에 필요한 열이 없어. 필요한 열: 측정소명, 경도, 위도. "
+            "CSV에 필요한 열이 없습니. 필요한 열: 측정소명, 경도, 위도. "
             f"현재 열: {list(df.columns)}"
         )
 
@@ -48,6 +48,6 @@ def get_station_coordinates():
             coordinates[station] = (lat, lon)
 
     if not coordinates:
-        raise RuntimeError("CSV 파일에서 유효한 측정소 좌표를 찾지 못했어.")
+        raise RuntimeError("CSV 파일에서 유효한 측정소 좌표를 찾지 못했습니.")
 
     return coordinates
