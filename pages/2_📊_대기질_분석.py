@@ -8,6 +8,7 @@ from utils.analysis import (
     calculate_min,
     calculate_trend,
 )
+from utils.grade import GRADE_LIMITS
 from utils.stations import get_station_coordinates
 
 
@@ -178,12 +179,14 @@ else:
 station_coordinates = get_station_coordinates()
 map_points = []
 
-if selected_name == "PM10":
-    limits = (30, 80, 150)
-elif selected_name == "PM2.5":
-    limits = (15, 35, 75)
-else:
-    limits = (0.03, 0.09, 0.15)
+limits = GRADE_LIMITS.get(selected_name)
+
+if limits is None:
+    st.info(
+        f"{selected_name}은(는) 지도에 사용할 등급 기준이 없어 "
+        "지도를 표시하지 않습니다."
+    )
+    st.stop()
 
 map_pollutant = selected_name
 
