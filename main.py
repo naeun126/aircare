@@ -73,7 +73,7 @@ st.markdown(
 
 st.markdown(
     '<div class="sub-title">'
-    '전국 대기질 데이터 분석 및 예측 프로그램'
+    '전국 대기질 데이터 분석 및 예 프로그램'
     '</div>',
     unsafe_allow_html=True
 )
@@ -87,7 +87,7 @@ st.markdown(
     <h3>🎯 AirCare는 무엇을 하는 프로그램인가요?</h3>
     <p>
   AirCare는 공공데이터를 활용하여 전국의 대기질을 조회하고,
-  주요 대기오염물질의 상태를 분석하며 예보하는 프로그램입니다.
+  주요 대기오염물질의 상태를 분석하며 공식 대기질 예보를 확하는 프로그램입니다.
     </p>
     </div>
     """,
@@ -112,7 +112,7 @@ with col2:
     st.write("PM10, PM2.5 등의 평균과 최대·최소값을 분석합니다.")
 
 with col3:
-    st.markdown("### 🔮 대기질 예측")
+    st.markdown("### 🔮 대기질 예")
     st.write("에어코리아 공식 예보를 조회합니다.")
 
 with col4:
