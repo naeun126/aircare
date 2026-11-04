@@ -73,7 +73,7 @@ st.markdown(
 
 st.markdown(
     '<div class="sub-title">'
-    '전국 대기질 데이터 분석 및 예 프로그램'
+    '전국 대기질 데이터 분석 및 예보 프로그램'
     '</div>',
     unsafe_allow_html=True
 )
@@ -112,7 +112,7 @@ with col2:
     st.write("PM10, PM2.5 등의 평균과 최대·최소값을 분석합니다.")
 
 with col3:
-    st.markdown("### 🔮 대기질 예")
+    st.markdown("### 🔮 대기질 예보")
     st.write("에어코리아 공식 예보를 조회합니다.")
 
 with col4:
