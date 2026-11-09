@@ -219,7 +219,7 @@ else:
                     + "\n".join(f"- {tip}" for tip in tips)
                 )
 
-                if worst == "매우나쁨":
+                if worst == "매우 나쁨":
                     st.error(message)
                 else:
                     st.warning(message)
