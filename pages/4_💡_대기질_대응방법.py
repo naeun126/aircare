@@ -164,7 +164,9 @@ else:
         known_grades = {
             name: grade
             for name, grade in grades.items()
-            if grade is not None
+            if grade is None:
+        st.caption("측정값 없음")
+        return
         }
 
         if not known_grades:
