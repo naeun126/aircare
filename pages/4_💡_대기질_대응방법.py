@@ -19,6 +19,18 @@ POLLUTANT_TIPS = {
         "오존 등급이 나쁜 시간대를 확인하세요.",
         "장시간 야외활동을 줄이는 것을 고려하세요.",
     ],
+    "이산화질소(NO₂)": [
+        "교통량이 많은 도로 주변의 야외활동을 줄이세요.",
+        "실내에서는 적절히 환기하세요.",
+    ],
+    "일산화탄소(CO)": [
+        "연소기기를 쓰는 공간은 환기 상태를 확인하세요.",
+        "이상이 있는 연소기기는 사용하지 말고 점검하세요.",
+    ],
+    "아황산가스(SO₂)": [
+        "장시간 야외활동을 줄이는 것을 고려하세요.",
+        "실내 공기질도 함께 관리하세요.",
+    ],
 }
 
 
@@ -115,15 +127,14 @@ else:
 
     if selected_record:
 
-        pm10 = selected_record.get("pm10Value")
-        pm25 = selected_record.get("pm25Value")
-        o3 = selected_record.get("o3Value")
-
-
+        # 측정값 6종 (이름은 GRADE_LIMITS의 키와 같아야 한다)
         measures = {
-            "PM10": pm10,
-            "PM2.5": pm25,
-            "오존(O₃)": o3,
+            "PM10": selected_record.get("pm10Value"),
+            "PM2.5": selected_record.get("pm25Value"),
+            "오존(O₃)": selected_record.get("o3Value"),
+            "이산화질소(NO₂)": selected_record.get("no2Value"),
+            "일산화탄소(CO)": selected_record.get("coValue"),
+            "아황산가스(SO₂)": selected_record.get("so2Value"),
         }
 
         grades = {
@@ -134,13 +145,18 @@ else:
 
         st.write("### 현재 측정값")
 
-        cols = st.columns(3)
+        # 3개씩 두 줄로 나누어 표시
+        items = list(measures.items())
 
-        for col, (name, value) in zip(cols, measures.items()):
+        for start in range(0, len(items), 3):
 
-            with col:
-                st.metric(name, value if value else "-")
-                show_grade(grades[name])
+            cols = st.columns(3)
+
+            for col, (name, value) in zip(cols, items[start:start + 3]):
+
+                with col:
+                    st.metric(name, value if value else "-")
+                    show_grade(grades[name])
 
 
         st.write("### 💡 대응 방법")
