@@ -1,9 +1,11 @@
 import streamlit as st
 
+# utils/grade.py: 등급 색상, 등급 순서, 물질별 기준값, 등급 판정 함수
 from utils.grade import GRADE_COLORS, GRADE_LEVELS, GRADE_LIMITS, get_grade
 
 
-# 나쁨 이상일 때 안내할 대응 방법
+# 나쁨 이상일 때 안내할 물질별 대응 방법.
+# 키 이름은 아래 measures, GRADE_LIMITS의 키와 같아야 한다.
 POLLUTANT_TIPS = {
     "PM10": [
         "외부 대기질을 확인하세요.",
@@ -37,12 +39,16 @@ POLLUTANT_TIPS = {
 def show_grade(grade):
     """등급을 색상과 함께 표시한다."""
 
+    # 측정값이 없어 등급을 판정하지 못한 경우(None)에는 안내 문구만 보여 준다.
     if grade is None:
-        st.caption("등급 정보 없음")
+        st.caption("측정값 없음")
         return
 
+    # 등급에 맞는 색상 (예: 좋음 -> 초록)
     color = GRADE_COLORS[grade]
 
+    # 등급 글자를 색상 배경의 작은 알약 모양으로 표시한다.
+    # {color}22는 같은 색에 투명도를 더해 연한 배경을 만든다.
     st.markdown(
         f'<span style="'
         f'background:{color}22; '
@@ -76,7 +82,8 @@ st.divider()
 
 st.subheader("📌 현재 대기질에 따른 대응 방법")
 
-# 1페이지에서 실제 조회한 지역 가져오기
+# 1페이지에서 실제 조회한 지역 가져오기.
+# air_data_sido가 있으면 그것을, 없으면 선택만 한 지역을, 그것도 없으면 서울을 쓴다.
 selected_sido = st.session_state.get(
     "air_data_sido",
     st.session_state.get("selected_sido", "서울")
@@ -84,8 +91,10 @@ selected_sido = st.session_state.get(
 
 st.caption(f"📍 현재 선택 지역: **{selected_sido}**")
 
+# 1페이지에서 저장한 측정소별 데이터
 data = st.session_state.get("air_data", [])
 
+# [예외 처리] 아직 데이터를 조회하지 않았으면 안내만 하고 아래 내용은 건너뛴다.
 if not data:
 
     st.warning(
@@ -94,6 +103,7 @@ if not data:
 
 else:
 
+    # 측정소 이름 목록 만들기 (중복 제거)
     station_names = []
 
     for record in data:
@@ -110,12 +120,14 @@ else:
     station_names.sort()
 
 
+    # 사용자가 볼 측정소를 고른다.
     selected_station = st.selectbox(
         "측정소를 선택하세요.",
         station_names
     )
 
 
+    # 고른 측정소의 데이터를 data에서 찾는다.
     selected_record = None
 
     for record in data:
@@ -127,7 +139,8 @@ else:
 
     if selected_record:
 
-        # 측정값 6종 (이름은 GRADE_LIMITS의 키와 같아야 한다)
+        # 측정값 6종 (이름은 GRADE_LIMITS의 키와 같아야 한다).
+        # 값이 없으면 None 또는 "-"가 들어온다.
         measures = {
             "PM10": selected_record.get("pm10Value"),
             "PM2.5": selected_record.get("pm25Value"),
@@ -137,6 +150,8 @@ else:
             "아황산가스(SO₂)": selected_record.get("so2Value"),
         }
 
+        # 물질별로 등급을 판정한다. (물질 이름 -> 등급)
+        # 값이 없거나 숫자가 아니면 get_grade가 None을 돌려준다.
         grades = {
             name: get_grade(value, GRADE_LIMITS[name])
             for name, value in measures.items()
@@ -145,30 +160,33 @@ else:
 
         st.write("### 현재 측정값")
 
-        # 3개씩 두 줄로 나누어 표시
+        # 6개를 3개씩 두 줄로 나누어 표시한다.
         items = list(measures.items())
 
         for start in range(0, len(items), 3):
 
+            # 한 줄에 3칸
             cols = st.columns(3)
 
             for col, (name, value) in zip(cols, items[start:start + 3]):
 
                 with col:
+                    # 측정값이 비어 있으면 "-"로 표시한다.
                     st.metric(name, value if value else "-")
+                    # 값 아래에 등급 표시
                     show_grade(grades[name])
 
 
         st.write("### 💡 대응 방법")
 
+        # 등급을 판정할 수 있었던 물질만 모은다. (None인 항목 제외)
         known_grades = {
             name: grade
             for name, grade in grades.items()
-            if grade is None:
-        st.caption("측정값 없음")
-        return
+            if grade is not None
         }
 
+        # 6개 모두 측정값이 없는 경우
         if not known_grades:
 
             st.info(
@@ -177,7 +195,8 @@ else:
 
         else:
 
-            # 가장 나쁜 등급을 기준으로 안내
+            # 가장 나쁜 등급을 기준으로 안내한다.
+            # GRADE_LEVELS.index는 등급의 순서 번호이다. (좋음=0 ... 매우 나쁨=3)
             worst = max(
                 known_grades.values(),
                 key=GRADE_LEVELS.index
@@ -208,23 +227,27 @@ else:
 
             else:
 
-                # 나쁨 이상인 오염물질 정리
+                # 나쁨 이상(순서 번호 2 이상)인 오염물질만 정리한다.
                 bad_items = [
                     (name, grade)
                     for name, grade in known_grades.items()
                     if GRADE_LEVELS.index(grade) >= 2
                 ]
 
+                # 예: "PM10 **나쁨**, 오존(O₃) **매우 나쁨**"
                 summary = ", ".join(
                     f"{name} **{grade}**"
                     for name, grade in bad_items
                 )
 
+                # 안내할 행동 요령 목록
                 tips = []
 
+                # 매우 나쁨이 하나라도 있으면 가장 먼저 외출 자제를 안내한다.
                 if worst == "매우 나쁨":
                     tips.append("불필요한 야외활동은 가급적 자제하세요.")
 
+                # 나쁨 이상인 물질의 행동 요령을 모으되, 같은 문장은 한 번만 넣는다.
                 for name, _ in bad_items:
 
                     for tip in POLLUTANT_TIPS[name]:
@@ -232,11 +255,13 @@ else:
                         if tip not in tips:
                             tips.append(tip)
 
+                # 요약 문장 + 글머리표 목록으로 안내 문구를 만든다.
                 message = (
                     f"🌫️ 현재 {summary} 상태입니다.\n\n"
                     + "\n".join(f"- {tip}" for tip in tips)
                 )
 
+                # 매우 나쁨은 빨간 상자, 나쁨은 노란 상자로 보여 준다.
                 if worst == "매우 나쁨":
                     st.error(message)
                 else:
@@ -254,6 +279,8 @@ st.subheader("🧭 대기오염물질별 대응 방법")
 
 st.caption("오염물질별 특징과 행동 요령을 한눈에 확인하세요.")
 
+# 물질별 안내 카드에 들어갈 내용.
+# icon: 이모지, color: 카드 왼쪽 띠 색, summary: 한 줄 설명, tips: 행동 요령
 pollutant_guides = [
     {
         "icon": "🌫️",
@@ -340,15 +367,17 @@ pollutant_guides = [
 ]
 
 
-# 두 개씩 나누어 카드 형태로 표시
+# 두 개씩 나누어 카드 형태로 표시한다.
 for i in range(0, len(pollutant_guides), 2):
 
+    # 한 줄에 2칸
     guide_cols = st.columns(2)
 
     for col, guide in zip(guide_cols, pollutant_guides[i:i + 2]):
 
         with col:
 
+            # 테두리가 있는 카드 상자
             with st.container(border=True):
 
                 # 오염물질 이름 (색상 띠 포함)
