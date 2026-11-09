@@ -310,48 +310,34 @@ if data:
         # -------------------------------------------------
         # 5-2. 최신 측정값 6종 (3개씩 두 줄)
         # -------------------------------------------------
-        st.subheader(
+               st.subheader(
             f"📊 {selected_station} 최신 측정값"
         )
 
-        # 위 줄 3칸, 아래 줄 3칸
-        col1, col2, col3 = st.columns(3)
-        col4, col5, col6 = st.columns(3)
+        # 화면에 보여 줄 물질 이름과 API 응답의 항목 이름
+        # (이름은 utils/grade.py의 GRADE_LIMITS 키와 같아야 한다)
+        measure_items = [
+            ("PM10", "pm10Value"),
+            ("PM2.5", "pm25Value"),
+            ("오존(O₃)", "o3Value"),
+            ("이산화질소(NO₂)", "no2Value"),
+            ("일산화탄소(CO)", "coValue"),
+            ("아황산가스(SO₂)", "so2Value"),
+        ]
 
-        # st.metric(이름, 값): 숫자를 크게 보여 주는 요소.
-        # 값이 없는 항목은 "-"로 표시한다.
-        with col1:
-            st.metric(
-                "PM10",
-                selected_record.get("pm10Value", "-")
-            )
+        # 6개를 3개씩 두 줄로 나누어 표시한다.
+        for start in range(0, len(measure_items), 3):
 
-        with col2:
-            st.metric(
-                "PM2.5",
-                selected_record.get("pm25Value", "-")
-            )
+            cols = st.columns(3)
 
-        with col3:
-            st.metric(
-                "오존(O₃)",
-                selected_record.get("o3Value", "-")
-            )
+            for col, (name, key) in zip(cols, measure_items[start:start + 3]):
 
-        with col4:
-            st.metric(
-                "이산화질소(NO₂)",
-                selected_record.get("no2Value", "-")
-            )
+                with col:
+                    value = selected_record.get(key)
 
-        with col5:
-            st.metric(
-                "일산화탄소(CO)",
-                selected_record.get("coValue", "-")
-            )
+                    # 측정값이 비어 있으면 "-"로 표시한다.
+                    st.metric(name, value if value else "-")
 
-        with col6:
-            st.metric(
-                "아황산가스(SO₂)",
-                selected_record.get("so2Value", "-")
-            )
+                    # 값이 없거나 숫자가 아니면(예: "-") 안내 문구를 붙인다.
+                    if get_grade(value, GRADE_LIMITS[name]) is None:
+                        st.caption("측정값 없음")
