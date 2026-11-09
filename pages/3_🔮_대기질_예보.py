@@ -3,6 +3,7 @@ import streamlit as st
 
 from datetime import date, timedelta
 from utils.api import get_air_quality_forecast
+from utils.grade import GRADE_COLORS
 
 
 # ========================================
@@ -162,16 +163,16 @@ def grade_color(grade):
     grade = str(grade).strip()
 
     if "매우나쁨" in grade or "매우 나쁨" in grade:
-        return "#D93636"
+        return GRADE_COLORS["매우 나쁨"]
 
     elif "나쁨" in grade:
-        return "#E87524"
+        return GRADE_COLORS["나쁨"]
 
     elif "보통" in grade:
-        return "#E5B900"
+        return GRADE_COLORS["보통"]
 
     elif "좋음" in grade:
-        return "#2E9D50"
+        return GRADE_COLORS["좋음"]
 
     return "#64748B"
 
